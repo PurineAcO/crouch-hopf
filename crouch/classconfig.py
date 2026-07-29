@@ -1,8 +1,14 @@
 import numpy as np
 
 # 常数定义
+
+# ————————————————————physics constants——————————————————
 R = 287.06
 cp = ...#TODO
+
+# ————————————————————simulation params——————————————————
+alpha_H = 0.2                   # 混合格式系数
+
 #TODO 常数定义一般需要从config.json中来
 
 class cell_class:
@@ -18,6 +24,10 @@ class cell_class:
         self.H = cp*T + 0.5*(self.u**2 + self.v**2)     # 焓
         self.miubl = miubl                              # 修正湍流粘度(̃ν)
 
+        # 单元的全部邻接面
+        self.face : list[face_class] = [None,None,None,None]
+
+        # 本单元的流动量能够写为13个矩阵的线性组合,他们的位置下
         self.influence = [                                np.zeros((5,5)),
                                           np.zeros((5,5)),np.zeros((5,5)),np.zeros((5,5)),
                           np.zeros((5,5)),np.zeros((5,5)),np.zeros((5,5)),np.zeros((5,5)),np.zeros((5,5)),
@@ -37,20 +47,20 @@ class cell_class:
         [ \ ][**10** ][**11** ][**12** ][ \ ]\n
         [ \ ][ \ ][**13** ][ \ ][ \ ]\n
         """    
-        self.influence[index-1] = self.influence[index-1]+A
+        self.influence[index] = self.influence[index]+A
 
     def cell_convect_mat(self):
         # 构建对流项矩阵,只保留前4*4个区间
-        self.F = [[self.u,self.rho,0,0,0],
+        self.F = np.array([[self.u,self.rho,0,0,0],
                         [self.u**2+ R*self.T,2*self.rho*self.u,0,self.rho*R,0],
                         [self.u*self.v,self.rho*self.v,self.rho*self.u,0,0],
                         [self.u*self.H,self.rho*(self.H+self.u**2),self.rho*self.u*self.v,self.rho*self.u*cp,0],
-                        [0,0,0,0,0]]
-        self.G = [[self.v,0,self.rho,0,0],
+                        [0,0,0,0,0]])
+        self.G = np.array([[self.v,0,self.rho,0,0],
                         [self.u*self.v,self.rho*self.v,self.rho*self.u,0,0],
                         [self.v**2+ R*self.T,0,2*self.rho*self.v,self.rho*R,0],
                         [self.v*self.H,self.rho*self.u*self.v,self.rho*(self.H+self.v**2),self.rho*self.v*cp,0],
-                        [0,0,0,0,0]]
+                        [0,0,0,0,0]])
 
     def source_mat(self):
         ...
@@ -71,7 +81,7 @@ class face_class():
         self.form_physics()
 
     def form_physics(self):
-        self.rho = (self.me.rho+self.me.rho)/2
+        self.rho = (self.me.rho+self.nei.rho)/2
         self.u = (self.me.u+self.nei.u)/2
         self.v = (self.me.v+self.nei.v)/2
         self.T = (self.me.T+self.nei.T)/2
