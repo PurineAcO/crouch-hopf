@@ -31,7 +31,7 @@ def face_convect_mat_4th_mid(face:cc.face_class):
 
 
 def face_convect_mat_3rd_upwind(face:cc.face_class):
-    """依照三阶迎风格式,构造二阶迎风格式对流项行向量,依据论文(3.1.12,14-18)"""
+    """依照三阶迎风格式,构造三阶迎风格式对流项行向量,依据论文(3.1.12,14-18)"""
     i,j = face.me.index
     upwind_3rd = [np.zeros((5,5)),np.zeros((5,5)),np.zeros((5,5)),np.zeros((5,5)),np.zeros((5,5)),
                   np.zeros((5,5)),np.zeros((5,5)),np.zeros((5,5)),np.zeros((5,5)),np.zeros((5,5)),
@@ -57,12 +57,12 @@ def face_convect_mat_3rd_upwind(face:cc.face_class):
                 upwind_3rd[pos-1] = w*g*(-1)
     elif face.direction == 'E':
         if v_n <= 0:
-            F_plus = [face.jacobi(cc.CellList[di][j].F, cc.CellList[di][j].G)[0] for di in [i+2,i+1,i]]
-            for pos,g,w in zip([9,8,7],F_plus,[-1/6,5/6,1/3]):
+            F_list = [face.jacobi(cc.CellList[di][j].F, cc.CellList[di][j].G)[0] for di in [i+2,i+1,i]]
+            for pos,g,w in zip([9,8,7],F_list,[-1/6,5/6,1/3]):
                 upwind_3rd[pos-1] = w*g
         else:
-            F_minus = [face.jacobi(cc.CellList[di][j].F, cc.CellList[di][j].G)[0] for di in [i-1,i,i+1]]
-            for pos,g,w in zip([6,7,8],F_minus,[-1/6,5/6,1/3]):
+            F_list= [face.jacobi(cc.CellList[di][j].F, cc.CellList[di][j].G)[0] for di in [i-1,i,i+1]]
+            for pos,g,w in zip([6,7,8],F_list,[-1/6,5/6,1/3]):
                 upwind_3rd[pos-1] = w*g
     elif face.direction == 'W':
         if v_n >= 0:
