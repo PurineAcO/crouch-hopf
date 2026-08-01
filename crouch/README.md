@@ -1,4 +1,4 @@
-# PurineCFD — 方法与函数说明
+# crouch — 方法与函数说明
 
 ## 目录
 
@@ -101,3 +101,6 @@ $$\tilde{A}_{i+\frac{1}{2},j}^{-} = \ominus \frac{1}{3} \tilde{A}_{i-1,j} \oplus
 最终构建的行向量是三阶迎风格式和四阶中心差分的加权平均,其权重系数为$\alpha_H$
 
 $$\boldsymbol{S}(\tilde{A}_{i+\frac{1}{2},j}) = \alpha_H \boldsymbol{S}_{\mathrm{up}} + (1-\alpha_H) \boldsymbol{S}_{\mathrm{mid}}$$
+
+## `readrans`
+
