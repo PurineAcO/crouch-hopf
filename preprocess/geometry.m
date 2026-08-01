@@ -3,6 +3,16 @@ function geometry(n_total, s_total, node_x, node_y, resultfile)
 script_dir = fileparts(mfilename('fullpath'));
 n_cell = n_total - 1;
 
+% 检测环排列方向: 第一圈 shoelace 有向面积, 正=逆时针(CCW), 负=顺时针(CW)
+shoelace = sum(node_x(1, 1 : s_total) .* node_y(1, 2 : s_total + 1) ...
+    - node_x(1, 2 : s_total + 1) .* node_y(1, 1 : s_total));
+orient = sign(shoelace);
+if orient > 0
+    fprintf('环排列方向: 逆时针 (orient=+1)\n');
+else
+    fprintf('环排列方向: 顺时针 (orient=-1)\n');
+end
+
 fprintf('geometry: 开始几何形成 (n_total=%d, s_total=%d)\n', n_total, s_total);
 
 %% 1. 单元体积与中心
@@ -31,9 +41,12 @@ for n = 1 : n_cell
         cell_vol(n, s) = 0.5 * abs(vec1(1) * vec2(2) - vec1(2) * vec2(1));
     end
 end
-fprintf('单元: %d 层 x %d 个/层 = %d 个\n', n_cell, s_total, n_cell * s_total);
+if any(cell_vol(:) <= 0)
+    error('存在非正单元体积');
+end
+fprintf('单元: %d 层 x %d 个/层 = %d 个, 体积全部为正\n', n_cell, s_total, n_cell * s_total);
 
-%% 2. NS 面
+%% 2. NS 面 (法向恒朝高处/远场: 环切向顺时针转90度再按排列方向翻转)
 ns_nx = zeros(n_total, s_total);
 ns_ny = zeros(n_total, s_total);
 ns_mx = zeros(n_total, s_total);
@@ -42,15 +55,15 @@ for n = 1 : n_total
     for s = 1 : s_total
         dx = node_x(n, s + 1) - node_x(n, s);
         dy = node_y(n, s + 1) - node_y(n, s);
-        ns_nx(n, s) = dy;
-        ns_ny(n, s) = -dx;
+        ns_nx(n, s) = orient * dy;
+        ns_ny(n, s) = -orient * dx;
         ns_mx(n, s) = 0.5 * (node_x(n, s) + node_x(n, s + 1));
         ns_my(n, s) = 0.5 * (node_y(n, s) + node_y(n, s + 1));
     end
 end
 fprintf('NS 面: %d 层 x %d 个/层\n', n_total, s_total);
 
-%% 3. WE 面
+%% 3. WE 面 (法向恒朝顺时针: 径向切向顺时针转90度)
 we_nx = zeros(n_cell, s_total + 1);
 we_ny = zeros(n_cell, s_total + 1);
 we_mx = zeros(n_cell, s_total + 1);
@@ -59,8 +72,8 @@ for n = 1 : n_cell
     for s = 1 : s_total + 1
         dx = node_x(n + 1, s) - node_x(n, s);
         dy = node_y(n + 1, s) - node_y(n, s);
-        we_nx(n, s) = -dy;
-        we_ny(n, s) = dx;
+        we_nx(n, s) = dy;
+        we_ny(n, s) = -dx;
         we_mx(n, s) = 0.5 * (node_x(n, s) + node_x(n + 1, s));
         we_my(n, s) = 0.5 * (node_y(n, s) + node_y(n + 1, s));
     end
