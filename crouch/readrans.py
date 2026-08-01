@@ -2,7 +2,7 @@ import numpy as np
 import classconfig as cc
 
 def get_scale(ransdata:str):
-    """自动获知网格规模: 读取`ransdata.txt`的`s`/`n`列最大值, 返回`(S_MAX, N_MAX)`"""
+    """自动获知网格规模"""
     with open(ransdata, encoding="utf-8") as f:
         header = f.readline().split()
     data = np.loadtxt(ransdata, skiprows=1)
@@ -121,6 +121,38 @@ def form_edge(edgedata:str):
                 me.west = face
                 nei.east = face
                 cc.FaceList_WE.append(face)
+
+    s_max = len(cc.CellList) - 2*cc.HALO - 1
+    n_max = len(cc.CellList[0]) - 2*cc.HALO - 1
+    for s in range(1, s_max + 1):
+        for n in range(1, n_max + 1):
+            cc.CellList[s + cc.HALO][n + cc.HALO].cell_jacobi()
+    for s in range(-cc.HALO, s_max + cc.HALO + 1):
+        for n in range(-cc.HALO, n_max + cc.HALO + 1):
+            cell = cc.CellList[s + cc.HALO][n + cc.HALO]
+            if cell is None:
+                continue
+            if 1 <= s <= s_max and 1 <= n <= n_max:
+                continue
+            if n < 1:
+                src = cc.CellList[s + cc.HALO][1 - n + cc.HALO]
+                cell.jacobian = [list(src.jacobian[0]), [-src.jacobian[1][0], -src.jacobian[1][1]]]
+            elif n > n_max:
+                src = cc.CellList[s + cc.HALO][2*n_max + 1 - n + cc.HALO]
+                cell.jacobian = [list(src.jacobian[0]), list(src.jacobian[1])]
+            elif s < 1:
+                src = cc.CellList[s_max + s + cc.HALO][n + cc.HALO]
+                cell.jacobian = [list(src.jacobian[0]), list(src.jacobian[1])]
+            else:
+                src = cc.CellList[s - s_max + cc.HALO][n + cc.HALO]
+                cell.jacobian = [list(src.jacobian[0]), list(src.jacobian[1])]
+    for s in range(1, s_max + 1):
+        g0 = cc.CellList[s + cc.HALO][cc.HALO]
+        gm1 = cc.CellList[s + cc.HALO][cc.HALO - 1]
+        g0.south = cc.face_class("NS", (0.0, 0.0), [[0.0, 0.0], [0.0, 0.0]], g0, gm1)
+        g90 = cc.CellList[s + cc.HALO][n_max + 1 + cc.HALO]
+        g91 = cc.CellList[s + cc.HALO][n_max + 2 + cc.HALO]
+        g90.north = cc.face_class("NS", (0.0, 0.0), [[0.0, 0.0], [0.0, 0.0]], g91, g90)
 
 def read_rans(ranspath:str,edgepath:str):
     """读取`ransdata.txt`和`edge.txt`"""

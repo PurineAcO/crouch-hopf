@@ -45,11 +45,11 @@ class cell_class:
 
     def form_influence(self,index,A):
         """对本单元的Nq离散化后是13个矩阵的线性组合,有13个网格对本网格造成了影响,他们的空间分布是\n
-        [ \\ ][ \\ ][ **1** ][ \\ ][ \\ ]\n
-        [ \\ ][ **2** ][ **3** ][ **4** ][ \\ ]\n
-        [ **5** ][ **6** ][ **7** ][ **8** ][ **9** ]\n
-        [ \\ ][**10** ][**11** ][**12** ][ \\ ]\n
-        [ \\ ][ \\ ][**13** ][ \\ ][ \\ ]\n
+        [ \\ ][ \\ ][ **0** ][ \\ ][ \\ ]\n
+        [ \\ ][ **1** ][ **2** ][ **3** ][ \\ ]\n
+        [ **4** ][ **5** ][ **6** ][ **7** ][ **8** ]\n
+        [ \\ ][**9** ][**10** ][**11** ][ \\ ]\n
+        [ \\ ][ \\ ][**12** ][ \\ ][ \\ ]\n
         """    
         self.influence[index] = self.influence[index]+A
 
@@ -68,6 +68,21 @@ class cell_class:
 
     def source_mat(self):
         ...
+
+    def cell_jacobi(self):
+        m_w, m_e = self.west.mid, self.east.mid
+        m_s, m_n = self.south.mid, self.north.mid
+        s_vec = (m_e[0] - m_w[0], m_e[1] - m_w[1])
+        n_vec = (m_n[0] - m_s[0], m_n[1] - m_s[1])
+        self.jacobian = [list(s_vec), list(n_vec)]
+
+    def jacobi(self,A,B):
+        A1 = A * self.jacobian[0][0] + B * self.jacobian[0][1]
+        A2 = A * self.jacobian[1][0] + B * self.jacobian[1][1]
+        return A1,A2
+
+    def convect_jacobi(self):
+        return self.jacobi(self.F, self.G)
 
 
 class face_class():
@@ -109,6 +124,9 @@ class face_class():
         A1 = A * self.jacobian[0][0] + B * self.jacobian[0][1]
         A2 = A * self.jacobian[1][0] + B * self.jacobian[1][1]
         return A1,A2
+
+    def vn(self):
+        return self.jacobi(self.u, self.v)[0]
 
 
 CellList : list[list[cell_class]] = []
