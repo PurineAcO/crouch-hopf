@@ -68,7 +68,7 @@ $$
 
 $$(\tilde{A},\tilde{B})^\top = \boldsymbol{J} (A,B)^\top$$
 
-在`face_class`里面定义了`face.jacobi`,可以直接用于该函数.函数返回一个元组,为变换的结果
+在`face_class`里面定义了`face.jacobi`,可以直接用于该函数.函数返回一个元组,为变换的结果.本文后面凡是加波浪线的都是基于当地方向定义的物理量(及其矩阵).
 
 ## `convect`
 
