@@ -13,7 +13,7 @@ HALO = 2                        # 虚单元层数
 #TODO 常数定义一般需要从config.json中来
 
 class cell_class:
-    def __init__(self,index:tuple[int,int],x,y,rho,u,v,T,miubl):
+    def __init__(self,index:tuple[int,int],x,y,rho,u,v,T,miubl,vol):
         """单元中心型的类,在创建时需要给出全部物理量,索引从1开始,i=1是最左侧,j=1是物面上方首层网格"""
         self.index = index                              # 单元编号,为结构化网格元组形式(i,j)
         self.x = x                                      # 单元中心x坐标
@@ -24,6 +24,13 @@ class cell_class:
         self.T = T                                      # 静温
         self.H = cp*T + 0.5*(self.u**2 + self.v**2)     # 焓
         self.miubl = miubl                              # 修正湍流粘度(̃ν)
+        self.vol = vol                                  # 单元体积
+
+        # 单元的梯度信息
+        self.ugrad = np.zeros(2)                        # u梯度
+        self.vgrad = np.zeros(2)                        # v梯度
+        self.Tgrad = np.zeros(2)                        # T梯度
+        self.miublgrad = np.zeros(2)                    # ̃ν梯度
 
         # 单元的全部邻接面, 槽位顺序 [W, E, S, N] (见 FACE_W/E/S/N)
         self.west : face_class = None
@@ -42,6 +49,9 @@ class cell_class:
         # 以下是各个对流项矩阵,我们约定,所有矩阵全部写在=0方程的左侧
         self.F = np.zeros((5,5))                        # x对流项(F)
         self.G = np.zeros((5,5))                        # y对流项(G)
+
+        # 在邢程期调用的方法
+        self.cell_convect_mat()                         # 构建对流项矩阵
 
     def form_influence(self,index,A):
         """对本单元的Nq离散化后是13个矩阵的线性组合,有13个网格对本网格造成了影响,他们的空间分布是\n
@@ -95,6 +105,14 @@ class face_class():
         self.nei = nei          # 一般一个面的低侧为nei网格
         self.mid = mid
         self.jacobian = jacobi  # 形式必须是(Xn,Yn;Xs,Ys)
+
+        # 梯度
+        self.ugrad = np.zeros(2)                        # u梯度
+        self.vgrad = np.zeros(2)                        # v梯度
+        self.Tgrad = np.zeros(2)                        # T梯度
+        self.miublgrad = np.zeros(2)                    # ̃ν梯度
+
+        # 构建面上的参数
         self.form_physics()     # 形成面上物理量,二阶中心差分
         self.recognize_direction()  # 将面与单元的槽位对应起来
 
@@ -125,8 +143,24 @@ class face_class():
         A2 = A * self.jacobian[1][0] + B * self.jacobian[1][1]
         return A1,A2
 
+    def grad_2nd_mid(self):
+        """对面上的梯度进行二阶中心差分"""
+        self.ugrad = (self.me.ugrad+self.nei.ugrad)/2
+        self.vgrad = (self.me.vgrad+self.nei.vgrad)/2
+        self.Tgrad = (self.me.Tgrad+self.nei.Tgrad)/2
+        self.miublgrad = (self.me.miublgrad+self.nei.miublgrad)/2
+
+    @property
     def vn(self):
         return self.jacobi(self.u, self.v)[0]
+
+    @property
+    def nx(self):
+        return self.jacobian[0][0]
+
+    @property
+    def ny(self):
+        return self.jacobian[0][1]
 
 
 CellList : list[list[cell_class]] = []

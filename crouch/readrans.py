@@ -23,8 +23,8 @@ def read_cells(ransdata:str,S_MAX:int,N_MAX:int,h:int = cc.HALO):
     cc.HALO_cellinit(S_MAX,N_MAX)
     for k in range(len(data)):
         i, j = int(data[k, col["s"]]), int(data[k, col["n"]])
-        cc.CellList[i + h][j + h] = cc.cell_class((i, j), *data[k, [col["x"], col["y"], col["rho"], 
-                                                                col["u"], col["v"], col["T"], col["miubl"]]])
+        cc.CellList[i + h][j + h] = cc.cell_class((i, j), *data[k, [col["x"], col["y"], col["rho"], col["u"],
+                                                             col["v"], col["T"], col["miubl"],col["vol"]]])
 
     # 处理边界虚单元
     fill_ghost(S_MAX, N_MAX, h)
@@ -37,22 +37,22 @@ def fill_ghost(S_MAX:int,N_MAX:int,h:int = cc.HALO):
         for s in range(1, S_MAX + 1):
             c = cc.CellList[s + h][k + h]
             cc.CellList[s + h][1 - k + h] = cc.cell_class((s, k), 0.0, 0.0,
-                                                          c.rho, -c.u, -c.v, c.T, -c.miubl)
+                                                          c.rho, -c.u, -c.v, c.T, -c.miubl,c.vol)
     # 远场虚层: 对称
     for k in range(1, h + 1):
         for s in range(1, S_MAX + 1):
             c = cc.CellList[s + h][N_MAX + 1 - k + h]
             cc.CellList[s + h][N_MAX + k + h] = cc.cell_class((s, N_MAX + 1 - k), 0.0, 0.0,
-                                                              c.rho, c.u, c.v, c.T, c.miubl)
+                                                              c.rho, c.u, c.v, c.T, c.miubl,c.vol)
     # 周期虚列: 循环
     for n in range(1, N_MAX + 1):
         for k in range(1, h + 1):
             c_hi = cc.CellList[S_MAX + 1 - k + h][n + h]
             cc.CellList[h + 1 - k][n + h] = cc.cell_class((S_MAX + 1 - k, n), 0.0, 0.0,c_hi.rho,
-                                                            c_hi.u, c_hi.v, c_hi.T, c_hi.miubl)
+                                                            c_hi.u, c_hi.v, c_hi.T, c_hi.miubl,c_hi.vol)
             c_lo = cc.CellList[k + h][n + h]
-            cc.CellList[S_MAX + k + h][n + h] = cc.cell_class((k, n), 0.0, 0.0,
-                                                              c_lo.rho, c_lo.u, c_lo.v, c_lo.T, c_lo.miubl)
+            cc.CellList[S_MAX + k + h][n + h] = cc.cell_class((k, n), 0.0, 0.0,c_lo.rho, c_lo.u, 
+                                                              c_lo.v, c_lo.T, c_lo.miubl,c_lo.vol)
 
 
 def detect_orient(edgedata:str) -> int:

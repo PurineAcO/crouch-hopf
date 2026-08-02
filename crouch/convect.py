@@ -22,7 +22,7 @@ def face_convect_mat_3rd_upwind(cell:cc.cell_class):
     """三阶迎风格式"""
     influence = [np.zeros((5,5)) for _ in range(13)]
 
-    if cell.north.vn() <= 0:
+    if cell.north.vn <= 0:
         influence[dic['nn']] += -1/6*cell.north.north.north.north.convect_jacobi()[1]
         influence[dic['n']] += 5/6*cell.north.north.convect_jacobi()[1]
         influence[dic['c']] += 1/3*cell.convect_jacobi()[1]
@@ -31,7 +31,7 @@ def face_convect_mat_3rd_upwind(cell:cc.cell_class):
         influence[dic['c']] += 5/6*cell.convect_jacobi()[1]
         influence[dic['n']] += 1/3*cell.north.north.convect_jacobi()[1]
 
-    if cell.south.vn() >= 0:
+    if cell.south.vn >= 0:
         influence[dic['ss']] += 1/6*cell.south.south.south.south.convect_jacobi()[1]
         influence[dic['s']] += -5/6*cell.south.south.convect_jacobi()[1]
         influence[dic['c']] += -1/3*cell.convect_jacobi()[1]
@@ -40,7 +40,7 @@ def face_convect_mat_3rd_upwind(cell:cc.cell_class):
         influence[dic['c']] += -5/6*cell.convect_jacobi()[1]
         influence[dic['s']] += -1/3*cell.south.south.convect_jacobi()[1]
 
-    if cell.east.vn() <= 0:
+    if cell.east.vn <= 0:
         influence[dic['ee']] += -1/6*cell.east.east.east.east.convect_jacobi()[0]
         influence[dic['e']] += 5/6*cell.east.east.convect_jacobi()[0]
         influence[dic['c']] += 1/3*cell.convect_jacobi()[0]
@@ -49,7 +49,7 @@ def face_convect_mat_3rd_upwind(cell:cc.cell_class):
         influence[dic['c']] += 5/6*cell.convect_jacobi()[0]
         influence[dic['e']] += 1/3*cell.east.east.convect_jacobi()[0]
 
-    if cell.west.vn() >= 0:
+    if cell.west.vn >= 0:
         influence[dic['ww']] += 1/6*cell.west.west.west.west.convect_jacobi()[0]
         influence[dic['w']] += -5/6*cell.west.west.convect_jacobi()[0]
         influence[dic['c']] += -1/3*cell.convect_jacobi()[0]
