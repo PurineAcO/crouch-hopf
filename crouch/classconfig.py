@@ -1,16 +1,42 @@
+import json
+import os
+
 import numpy as np
 
 # 常数定义
 
-# ————————————————————physics constants——————————————————
-R = 287.06
-cp = 1004.71               # 空气定压比热
+# ————————————————————configuration——————————————————
+# 全部常数从项目根目录的 config.json 中读取,按湍流模型参数/物理参数/求解器参数分类
+with open(os.path.join(os.path.dirname(__file__), "..", "config.json"),
+          encoding="utf-8") as _cfg_file:
+    _CONFIG = json.load(_cfg_file)
 
-# ————————————————————simulation params——————————————————
-alpha_H = 0.2                   # 混合格式系数
-HALO = 2                        # 虚单元层数
+# ————————————————————turbulence model constants(S-A模型)——————————————————
+inv_sigma = _CONFIG["turbulence"]["inv_sigma"]  # 1/σ,湍流扩散项系数(代码中使用1/σ形式)
+Cv1 = _CONFIG["turbulence"]["Cv1"]          # 阻尼函数常数Cv1
+Ct3 = _CONFIG["turbulence"]["Ct3"]          # 转捩修正常数Ct3
+Ct4 = _CONFIG["turbulence"]["Ct4"]          # 转捩修正常数Ct4
+fv3 = _CONFIG["turbulence"]["fv3"]          # 涡量模修正系数fv3
+kappa = _CONFIG["turbulence"]["kappa"]      # von Kármán常数κ
+Cb1 = _CONFIG["turbulence"]["Cb1"]          # 生成项常数Cb1
+Cb2 = _CONFIG["turbulence"]["Cb2"]          # 扩散项常数Cb2
+Cw1 = _CONFIG["turbulence"]["Cw1"]          # 破坏项常数Cw1
+Cw2 = _CONFIG["turbulence"]["Cw2"]          # 壁面阻尼函数常数Cw2
+Cw3 = _CONFIG["turbulence"]["Cw3"]          # 壁面阻尼函数常数Cw3
+rmax = _CONFIG["turbulence"]["rmax"]        # 无量纲距离r的上限
 
-#TODO 常数定义一般需要从config.json中来
+# ————————————————————physics constants(Sutherland等空气性质)——————————————————
+R = _CONFIG["physics"]["R"]                 # 气体常数
+cp = _CONFIG["physics"]["cp"]               # 空气定压比热
+mu0 = _CONFIG["physics"]["mu0"]             # Sutherland公式参考粘度
+T0 = _CONFIG["physics"]["T0"]               # Sutherland公式参考温度
+Ts = _CONFIG["physics"]["Ts"]               # Sutherland公式Sutherland温度
+Pr = _CONFIG["physics"]["Pr"]               # 层流Prandtl数
+Prt = _CONFIG["physics"]["Prt"]             # 湍流Prandtl数
+
+# ————————————————————solver params——————————————————
+alpha_H = _CONFIG["solver"]["alpha_H"]      # 混合格式系数
+HALO = _CONFIG["solver"]["HALO"]            # 虚单元层数
 
 class cell_class:
     def __init__(self,index:tuple[int,int],x,y,rho,u,v,T,miubl,vol):
@@ -31,6 +57,18 @@ class cell_class:
         self.vgrad = np.zeros(2)                        # v梯度
         self.Tgrad = np.zeros(2)                        # T梯度
         self.miublgrad = np.zeros(2)                    # ̃ν梯度
+
+        # 单元的湍流字典
+        self.mu_eff = 0.0                               # 有效粘度μeff
+        self.lambda_eff = 0.0                           # 有效导热系数λeff
+        self.chi = 0.0                                  # 修正粘度比χ
+        self.fv1 = 0.0                                  # 阻尼函数fv1
+        self.fv2 = 0.0                                  # 涡量修正函数fv2
+        self.fw = 0.0                                   # 壁面阻尼函数fw
+        self.ft2 = 0.0                                  # 生产项修正函数ft2
+        self.S = 0.0                                    # 涡量模S
+        self.r = 0.0                                    # 无量纲距离r
+        self.mu = 0.0                                   # 分子粘度μ
 
         # 单元的全部邻接面, 槽位顺序 [W, E, S, N] (见 FACE_W/E/S/N)
         self.west : face_class = None
