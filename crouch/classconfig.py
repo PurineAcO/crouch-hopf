@@ -134,3 +134,8 @@ FaceList_WE : list[face_class] = []
 FaceList_NS : list[face_class] = []
 
 BigMatrix = []
+
+def HALO_cellinit(S_MAX:int,N_MAX:int):
+    """halo 化下标空间: s=-HALO⋯S_MAX+HALO, n=-HALO⋯N_MAX+HALO, 角落保持 None"""
+    CellList.clear()
+    CellList.extend([[None] * (N_MAX + 2 * HALO + 1) for _ in range(S_MAX + 2 * HALO + 1)])
