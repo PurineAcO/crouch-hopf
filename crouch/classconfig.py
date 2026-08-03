@@ -38,6 +38,9 @@ Prt = _CONFIG["physics"]["Prt"]             # 湍流Prandtl数
 alpha_H = _CONFIG["solver"]["alpha_H"]      # 混合格式系数
 HALO = _CONFIG["solver"]["HALO"]            # 虚单元层数
 
+# 在实际的计算中,程序一共会和本家网格的周围13个单元发生关系,这是他们在cell.influence的编号
+dic = {'n':2,'nn':0,'s':10,'ss':12,'e':7,'ee':8,'w':5,'ww':4,'c':6,'ne':3,'nw':1,'se':11,'sw':9}
+
 class cell_class:
     def __init__(self,index:tuple[int,int],x,y,rho,u,v,T,miubl,vol):
         """单元中心型的类,在创建时需要给出全部物理量,索引从1开始,i=1是最左侧,j=1是物面上方首层网格"""
@@ -59,16 +62,16 @@ class cell_class:
         self.miublgrad = np.zeros(2)                    # ̃ν梯度
 
         # 单元的湍流字典
-        self.mu_eff = 0.0                               # 有效粘度μeff
-        self.lambda_eff = 0.0                           # 有效导热系数λeff
-        self.chi = 0.0                                  # 修正粘度比χ
-        self.fv1 = 0.0                                  # 阻尼函数fv1
-        self.fv2 = 0.0                                  # 涡量修正函数fv2
-        self.fw = 0.0                                   # 壁面阻尼函数fw
-        self.ft2 = 0.0                                  # 生产项修正函数ft2
-        self.S = 0.0                                    # 涡量模S
-        self.r = 0.0                                    # 无量纲距离r
-        self.mu = 0.0                                   # 分子粘度μ
+        self.mu_eff = None                               # 有效粘度μeff
+        self.lambda_eff = None                           # 有效导热系数λeff
+        self.chi = None                                  # 修正粘度比χ
+        self.fv1 = None                                  # 阻尼函数fv1
+        self.fv2 = None                                  # 涡量修正函数fv2
+        self.fw = None                                   # 壁面阻尼函数fw
+        self.ft2 = None                                  # 生产项修正函数ft2
+        self.S = None                                    # 涡量模S
+        self.r = None                                    # 无量纲距离r
+        self.mu = None                                   # 分子粘度μ
 
         # 单元的全部邻接面, 槽位顺序 [W, E, S, N] (见 FACE_W/E/S/N)
         self.west : face_class = None
@@ -151,16 +154,16 @@ class face_class():
         self.miublgrad = np.zeros(2)                    # ̃ν梯度
 
         # 面上的湍流字典
-        self.mu_eff = 0.0                               # 有效粘度μeff
-        self.lambda_eff = 0.0                           # 有效导热系数λeff
-        self.chi = 0.0                                  # 修正粘度比χ
-        self.fv1 = 0.0                                  # 阻尼函数fv1
-        self.fv2 = 0.0                                  # 涡量修正函数fv2
-        self.fw = 0.0                                   # 壁面阻尼函数fw
-        self.ft2 = 0.0                                  # 生产项修正函数ft2
-        self.S = 0.0                                    # 涡量模S
-        self.r = 0.0                                    # 无量纲距离r
-        self.mu = 0.0                                   # 分子粘度μ
+        self.mu_eff = None                               # 有效粘度μeff
+        self.lambda_eff = None                           # 有效导热系数λeff
+        self.chi = None                                  # 修正粘度比χ
+        self.fv1 = None                                  # 阻尼函数fv1
+        self.fv2 = None                                  # 涡量修正函数fv2
+        self.fw = None                                   # 壁面阻尼函数fw
+        self.ft2 = None                                  # 生产项修正函数ft2
+        self.S = None                                    # 涡量模S
+        self.r = None                                    # 无量纲距离r
+        self.mu = None                                   # 分子粘度μ
 
         # 构建面上的参数
         self.form_physics()     # 形成面上物理量,二阶中心差分
@@ -212,7 +215,7 @@ class face_class():
         self.S = (self.me.S+self.nei.S)/2
         self.r = (self.me.r+self.nei.r)/2
         self.mu = (self.me.mu+self.nei.mu)/2
-        
+
     @property
     def vn(self):
         return self.jacobi(self.u, self.v)[0]
