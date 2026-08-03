@@ -43,7 +43,7 @@ class cell_class:
         """单元中心型的类,在创建时需要给出全部物理量,索引从1开始,i=1是最左侧,j=1是物面上方首层网格"""
         self.index = index                              # 单元编号,为结构化网格元组形式(i,j)
         self.x = x                                      # 单元中心x坐标
-        self.y = y                                      # 单元中心y坐标     
+        self.y = y                                      # 单元中心y坐标
         self.rho = rho                                  # 密度
         self.u = u                                      # x速度
         self.v = v                                      # y速度
@@ -82,7 +82,7 @@ class cell_class:
                           np.zeros((5,5)),np.zeros((5,5)),np.zeros((5,5)),np.zeros((5,5)),np.zeros((5,5)),
                                           np.zeros((5,5)),np.zeros((5,5)),np.zeros((5,5)),
                                                           np.zeros((5,5))
-                          ]  
+                          ]
 
         # 以下是各个对流项矩阵,我们约定,所有矩阵全部写在=0方程的左侧
         self.F = np.zeros((5,5))                        # x对流项(F)
@@ -98,7 +98,7 @@ class cell_class:
         [ **4** ][ **5** ][ **6** ][ **7** ][ **8** ]\n
         [ \\ ][**9** ][**10** ][**11** ][ \\ ]\n
         [ \\ ][ \\ ][**12** ][ \\ ][ \\ ]\n
-        """    
+        """
         self.influence[index] = self.influence[index]+A
 
     def cell_convect_mat(self):
@@ -150,6 +150,18 @@ class face_class():
         self.Tgrad = np.zeros(2)                        # T梯度
         self.miublgrad = np.zeros(2)                    # ̃ν梯度
 
+        # 面上的湍流字典
+        self.mu_eff = 0.0                               # 有效粘度μeff
+        self.lambda_eff = 0.0                           # 有效导热系数λeff
+        self.chi = 0.0                                  # 修正粘度比χ
+        self.fv1 = 0.0                                  # 阻尼函数fv1
+        self.fv2 = 0.0                                  # 涡量修正函数fv2
+        self.fw = 0.0                                   # 壁面阻尼函数fw
+        self.ft2 = 0.0                                  # 生产项修正函数ft2
+        self.S = 0.0                                    # 涡量模S
+        self.r = 0.0                                    # 无量纲距离r
+        self.mu = 0.0                                   # 分子粘度μ
+
         # 构建面上的参数
         self.form_physics()     # 形成面上物理量,二阶中心差分
         self.recognize_direction()  # 将面与单元的槽位对应起来
@@ -182,12 +194,25 @@ class face_class():
         return A1,A2
 
     def grad_2nd_mid(self):
-        """对面上的梯度进行二阶中心差分"""
+        """对面上的梯度进行二阶中心插值"""
         self.ugrad = (self.me.ugrad+self.nei.ugrad)/2
         self.vgrad = (self.me.vgrad+self.nei.vgrad)/2
         self.Tgrad = (self.me.Tgrad+self.nei.Tgrad)/2
         self.miublgrad = (self.me.miublgrad+self.nei.miublgrad)/2
 
+    def diffusion_2nd_min_SA(self):
+        """对面上的湍流字典进行二阶中心插值"""
+        self.mu_eff = (self.me.mu_eff+self.nei.mu_eff)/2
+        self.lambda_eff = (self.me.lambda_eff+self.nei.lambda_eff)/2
+        self.chi = (self.me.chi+self.nei.chi)/2
+        self.fv1 = (self.me.fv1+self.nei.fv1)/2
+        self.fv2 = (self.me.fv2+self.nei.fv2)/2
+        self.fw = (self.me.fw+self.nei.fw)/2
+        self.ft2 = (self.me.ft2+self.nei.ft2)/2
+        self.S = (self.me.S+self.nei.S)/2
+        self.r = (self.me.r+self.nei.r)/2
+        self.mu = (self.me.mu+self.nei.mu)/2
+        
     @property
     def vn(self):
         return self.jacobi(self.u, self.v)[0]
