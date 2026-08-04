@@ -135,6 +135,12 @@ class cell_class:
     def convect_jacobi(self):
         return self.jacobi(self.F, self.G)
 
+    def viscous_convect_jacobi(self):
+        vsF,vsG = self.jacobi(np.array([self.u*self.miubl,self.rho*self.miubl,0,0,self.rho*self.u]),
+                           np.array([self.v*self.miubl,0,self.rho*self.miubl,0,self.rho*self.v]))
+        return (np.array([np.zeros(5),np.zeros(5),np.zeros(5),np.zeros(5),vsF]), 
+                np.array([np.zeros(5),np.zeros(5),np.zeros(5),np.zeros(5),vsG]))
+
 
 class face_class():
     def __init__(self,direction:str,mid:tuple,jacobi,
