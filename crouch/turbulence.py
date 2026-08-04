@@ -44,18 +44,19 @@ def face_diffusion_WE(face:cc.face_class):
     """计算WE面的扩散项"""
 
     B0 = 2 * (face.ugrad[0]-1/3*(face.ugrad[0]+face.vgrad[1]))*(face.fv1*(4-3*face.fv1))
-    B1 = B0 * face.miubl
-    B2 = B0 * face.rho
+    C0 = 2 * (face.ugrad[1] + face.vgrad[0]) * (face.fv1 * (4-3*face.fv1))
+    B1 = B0 * face.miubl ; C1 = C0 * face.miubl
+    B2 = B0 * face.rho ; C2 = C0 * face.rho
     dic = grad.green_gauss_face_vari_WE(face)
 
     # 中心网格(6号),以下均以东侧网格为例,西侧网格的相对位置关系也是一致的.
     Dx = np.array([[0,0,0,0,0],
-                   [4/3*face.mu_eff*dic["w"][0],-2/3*face.mu_eff*dic["w"][1],B1/2,0,B2/2],
+                   [B1/2,4/3*face.mu_eff*dic["w"][0],-2/3*face.mu_eff*dic["w"][1],0,B2/2],
                    [...],
                    [...],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [...],
+                   [C1/2,face.mu_eff*dic["w"][1],face.mu_eff*dic["w"][0],0,C2/2],
                    [...],
                    [...],
                    [...]])
@@ -63,12 +64,12 @@ def face_diffusion_WE(face:cc.face_class):
 
     # 东侧网格(7号)
     Dx = np.array([[0,0,0,0,0],
-                   [4/3*face.mu_eff*dic["e"][0],-2/3*face.mu_eff*dic["e"][1],B1/2,0,B2/2],
+                   [B1/2,4/3*face.mu_eff*dic["e"][0],-2/3*face.mu_eff*dic["e"][1],0,B2/2],
                    [...],
                    [...],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [...],
+                   [C1/2,face.mu_eff*dic['e'][1],face.mu_eff*dic["e"][0],0,C2/2],
                    [...],
                    [...],
                    [...]])
@@ -76,12 +77,12 @@ def face_diffusion_WE(face:cc.face_class):
 
     # 北侧网格(2号)
     Dx = np.array([[0,0,0,0,0],
-                   [4/3*face.mu_eff*dic["nw"][0],-2/3*face.mu_eff*dic["nw"][1],0,0,0],
+                   [0,4/3*face.mu_eff*dic["nw"][0],-2/3*face.mu_eff*dic["nw"][1],0,0],
                    [...],
                    [...],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [...],
+                   [0,face.mu_eff*dic["nw"][1],face.mu_eff*dic["nw"][0],0,0],
                    [...],
                    [...],
                    [...]])
@@ -89,12 +90,12 @@ def face_diffusion_WE(face:cc.face_class):
 
     # 东北网格(3号)
     Dx = np.array([[0,0,0,0,0],
-                   [4/3*face.mu_eff*dic["ne"][0],-2/3*face.mu_eff*dic['ne'][1],0,0,0],
+                   [0,4/3*face.mu_eff*dic["ne"][0],-2/3*face.mu_eff*dic['ne'][1],0,0],
                    [...],
                    [...],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [...],
+                   [0,face.mu_eff*dic['ne'][1],face.mu_eff*dic['ne'][0],0,0],
                    [...],
                    [...],
                    [...]])
@@ -102,12 +103,12 @@ def face_diffusion_WE(face:cc.face_class):
 
     # 南侧网格(10号)
     Dx = np.array([[0,0,0,0,0],
-                   [4/3*face.mu_eff*dic['sw'][0],-2/3*face.mu_eff*dic['sw'][1],0,0,0],
+                   [0,4/3*face.mu_eff*dic['sw'][0],-2/3*face.mu_eff*dic['sw'][1],0,0],
                    [...],
                    [...],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [...],
+                   [0,face.mu_eff*dic['sw'][1],face.mu_eff*dic['sw'][0],0,0],
                    [...],
                    [...],
                    [...]])
@@ -115,12 +116,12 @@ def face_diffusion_WE(face:cc.face_class):
 
     # 东南网格(11号)
     Dx = np.array([[0,0,0,0,0],
-                   [4/3*face.mu_eff*dic['se'][0],-2/3*face.mu_eff*dic['se'][1],0,0,0],
+                   [0,4/3*face.mu_eff*dic['se'][0],-2/3*face.mu_eff*dic['se'][1],0,0],
                    [...],
                    [...],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [...],
+                   [0,face.mu_eff*dic['se'][1],face.mu_eff*dic['se'][0],0,0],
                    [...],
                    [...],
                    [...]])
@@ -128,12 +129,12 @@ def face_diffusion_WE(face:cc.face_class):
 
     # 东东网格(8号)
     Dx = np.array([[0,0,0,0,0],
-                   [4/3*face.mu_eff*dic['ee'][0],-2/3*face.mu_eff*dic["ee"][1],0,0,0],
+                   [0,4/3*face.mu_eff*dic['ee'][0],-2/3*face.mu_eff*dic["ee"][1],0,0],
                    [...],
                    [...],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [...],
+                   [0,face.mu_eff*dic['ee'][1],face.mu_eff*dic['ee'][0],0,0],
                    [...],
                    [...],
                    [...]])
@@ -141,12 +142,12 @@ def face_diffusion_WE(face:cc.face_class):
 
     # 西侧网格(5号)
     Dx = np.array([[0,0,0,0,0],
-                   [4/3*face.mu_eff*dic['ww'][0],-2/3*face.mu_eff*dic['ww'][1],0,0,0],
+                   [0,4/3*face.mu_eff*dic['ww'][0],-2/3*face.mu_eff*dic['ww'][1],0,0],
                    [...],
                    [...],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [...],
+                   [0,face.mu_eff*dic['ww'][1],face.mu_eff*dic['ww'][0],0,0],
                    [...],
                    [...],
                    [...]])
