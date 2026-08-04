@@ -2,6 +2,7 @@ import classconfig as cc
 import numpy as np
 
 # 本篇对s,n随体向量的要求是,必须指向北方和东方作为正.
+# BUG:Jacobi 的位置错误了!!!
 
 def face_convect_mat_4th_mid(cell:cc.cell_class):
     """四阶中心差分格式"""

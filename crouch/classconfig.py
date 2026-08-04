@@ -54,6 +54,7 @@ class cell_class:
         self.H = cp*T + 0.5*(self.u**2 + self.v**2)     # 焓
         self.miubl = miubl                              # 修正湍流粘度(̃ν)
         self.vol = vol                                  # 单元体积
+        self.jacobian = None                            # 单元jacobi矩阵
 
         # 单元的梯度信息
         self.ugrad = np.zeros(2)                        # u梯度

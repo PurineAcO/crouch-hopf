@@ -62,7 +62,8 @@ def face_diffusion_WE(face:cc.face_class):
                    [face.u*B1/2+face.v*C1/2+G1/2,face.tauxx/2+4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
                     face.tauxy/2-2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],
                     face.u*B2/2+face.v*C2/2+G2/2],
-                   [...],])
+                   [1/2*face.miublgrad[0]*face.miubl*cc.inv_sigma,0,0,0,
+                    1/2*face.miublgrad[0]*face.rho*cc.inv_sigma+face.mu_eff*dire[0]*cc.inv_sigma]])
     Dy = np.array([[0,0,0,0,0],
                    [C1/2,face.mu_eff*dire[1],face.mu_eff*dire[0],0,C2/2],
                    [E1/2,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,E2/2],
@@ -80,14 +81,16 @@ def face_diffusion_WE(face:cc.face_class):
                    [face.u*B1/2+face.v*C1/2+G1/2,face.tauxx/2+4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
                     face.tauxy/2-2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],
                     face.u*B2/2+face.v*C2/2+G2/2],
-                   [...],])
+                   [1/2*face.miublgrad[0]*face.miubl*cc.inv_sigma,0,0,0,
+                    1/2*face.miublgrad[0]*face.rho*cc.inv_sigma+face.mu_eff*dire[0]*cc.inv_sigma]])
     Dy = np.array([[0,0,0,0,0],
                    [C1/2,face.mu_eff*dire[1],face.mu_eff*dire[0],0,C2/2],
                    [E1/2,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,E2/2],
                    [face.u*C1/2+face.v*E1/2+G1/2,face.tauxy/2+face.u*face.mu_eff*dire[1]-2/3*face.v*face.mu_eff*dire[0],
                    face.tauyy/2+face.u*face.mu_eff*dire[1]+4/3*face.v*face.mu_eff*dire[0],face.lambda_eff*dire[1],
                    face.u*C2/2+face.v*E2/2+G2/2],
-                   [...]])
+                   [1/2*face.miublgrad[1]*face.miubl*cc.inv_sigma,0,0,0,
+                    1/2*face.miublgrad[1]*face.rho*cc.inv_sigma+face.mu_eff*dire[1]*cc.inv_sigma]])
     D7 = face.jacobi(Dx,Dy)[0]
 
     # 北侧网格(2号)
@@ -97,13 +100,13 @@ def face_diffusion_WE(face:cc.face_class):
                    [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
                    [0,4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
                     -2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],0],
-                   [...],])
+                   [0,0,0,0,face.mu_eff*dire[0]*cc.inv_sigma]])
     Dy = np.array([[0,0,0,0,0],
                    [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
                    [0,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,0],
                    [0,face.u*face.mu_eff*dire[1]-2/3*face.v*face.mu_eff*dire[0],
                    face.u*face.mu_eff*dire[1]+4/3*face.v*face.mu_eff*dire[0],face.lambda_eff*dire[1],0],
-                   [...]])
+                   [0,0,0,0,face.mu_eff*dire[1]*cc.inv_sigma]])
     D2 = face.jacobi(Dx,Dy)[0]
 
     # 东北网格(3号)
@@ -113,13 +116,13 @@ def face_diffusion_WE(face:cc.face_class):
                    [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
                    [0,4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
                     -2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],0],
-                   [...],])
+                   [0,0,0,0,face.mu_eff*dire[0]*cc.inv_sigma]])
     Dy = np.array([[0,0,0,0,0],
                    [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
                    [0,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,0],
                    [0,face.u*face.mu_eff*dire[1]-2/3*face.v*face.mu_eff*dire[0],
                    face.u*face.mu_eff*dire[1]+4/3*face.v*face.mu_eff*dire[0],face.lambda_eff*dire[1],0],
-                   [...]])
+                   [0,0,0,0,face.mu_eff*dire[1]*cc.inv_sigma]])
     D3 = face.jacobi(Dx,Dy)[0]
 
     # 南侧网格(10号)
@@ -129,13 +132,13 @@ def face_diffusion_WE(face:cc.face_class):
                    [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
                    [0,4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
                     -2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],0],
-                   [...],])
+                   [0,0,0,0,face.mu_eff*dire[0]*cc.inv_sigma]])
     Dy = np.array([[0,0,0,0,0],
                    [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
                    [0,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,0],
                    [0,face.u*face.mu_eff*dire[1]-2/3*face.v*face.mu_eff*dire[0],
                    face.u*face.mu_eff*dire[1]+4/3*face.v*face.mu_eff*dire[0],face.lambda_eff*dire[1],0],
-                   [...]])
+                   [0,0,0,0,face.mu_eff*dire[1]*cc.inv_sigma]])
     D10 = face.jacobi(Dx,Dy)[0]
 
     # 东南网格(11号)
@@ -145,13 +148,13 @@ def face_diffusion_WE(face:cc.face_class):
                    [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
                    [0,4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
                     -2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],0],
-                   [...],])
+                   [0,0,0,0,face.mu_eff*dire[0]*cc.inv_sigma]])
     Dy = np.array([[0,0,0,0,0],
                    [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
                    [0,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,0],
                    [0,face.u*face.mu_eff*dire[1]-2/3*face.v*face.mu_eff*dire[0],
                    face.u*face.mu_eff*dire[1]+4/3*face.v*face.mu_eff*dire[0],face.lambda_eff*dire[1],0],
-                   [...]])
+                   [0,0,0,0,face.mu_eff*dire[1]*cc.inv_sigma]])
     D11 = face.jacobi(Dx,Dy)[0]
 
     # 东东网格(8号)
@@ -161,13 +164,13 @@ def face_diffusion_WE(face:cc.face_class):
                    [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
                    [0,4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
                     -2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],0],
-                   [...],])
+                   [0,0,0,0,face.mu_eff*dire[0]*cc.inv_sigma]])
     Dy = np.array([[0,0,0,0,0],
                    [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
                    [0,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,0],
                    [0,face.u*face.mu_eff*dire[1]-2/3*face.v*face.mu_eff*dire[0],
                    face.u*face.mu_eff*dire[1]+4/3*face.v*face.mu_eff*dire[0],face.lambda_eff*dire[1],0],
-                   [...]])
+                   [0,0,0,0,face.mu_eff*dire[1]*cc.inv_sigma]])
     D8 = face.jacobi(Dx,Dy)[0]
 
     # 西侧网格(5号)
@@ -177,13 +180,13 @@ def face_diffusion_WE(face:cc.face_class):
                    [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
                    [0,4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
                     -2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],0],
-                   [...],])
+                   [0,0,0,0,face.mu_eff*dire[0]*cc.inv_sigma]])
     Dy = np.array([[0,0,0,0,0],
                    [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
                    [0,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,0],
                    [0,face.u*face.mu_eff*dire[1]-2/3*face.v*face.mu_eff*dire[0],
                    face.u*face.mu_eff*dire[1]+4/3*face.v*face.mu_eff*dire[0],face.lambda_eff*dire[1],0],
-                   [...]])
+                   [0,0,0,0,face.mu_eff*dire[1]*cc.inv_sigma]])
     D5 = face.jacobi(Dx,Dy)[0]
 
     return D6,D7,D2,D3,D10,D11,D8,D5
