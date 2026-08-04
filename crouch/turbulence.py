@@ -1,6 +1,6 @@
 import classconfig as cc
 import numpy as np
-import math
+import grad
 
 def SA_calc_constants(cell:cc.cell_class):
     """计算Spalart-Allmaras湍流模型引起的有效粘度系数*μeff*,\n
@@ -24,13 +24,13 @@ def cell_diffusion(cell:cc.cell_class):
 
     # 计算东面的结果
     directions = ["c", "e", "n", "ne", "s", "se", "ee", "w"]
-    results = face_diffusion_WE(cell.east, "E")
+    results = face_diffusion_WE(cell.east)
     for dire, val in zip(directions, results):
         influence[cc.dic[dire]] += val
 
     # 计算西面的结果
     directions = ["w","c","nw","n","sw","s","e","ww"]
-    results = face_diffusion_WE(cell.west,"W")
+    results = face_diffusion_WE(cell.west)
     for dire, val in zip(directions, results):
         influence[cc.dic[dire]] += val
 
@@ -40,16 +40,17 @@ def cell_diffusion(cell:cc.cell_class):
     # 计算北面的结果
     ...
 
-def face_diffusion_WE(face:cc.face_class,dire:str):
+def face_diffusion_WE(face:cc.face_class):
     """计算WE面的扩散项"""
 
-    B0 = 2(face.ugrad[0]-1/3*(face.ugrad[0]+face.vgrad[1]))*(face.fv1*(4-3*face.fv1))
+    B0 = 2 * (face.ugrad[0]-1/3*(face.ugrad[0]+face.vgrad[1]))*(face.fv1*(4-3*face.fv1))
     B1 = B0 * face.miubl
     B2 = B0 * face.rho
+    dic = grad.green_gauss_face_vari_WE(face)
 
     # 中心网格(6号),以下均以东侧网格为例,西侧网格的相对位置关系也是一致的.
     Dx = np.array([[0,0,0,0,0],
-                   [-2/3*face.mu_eff*face.nx,1/3*face.mu_eff*face.ny,B1/2,0,B2/2],
+                   [4/3*face.mu_eff*dic["w"][0],-2/3*face.mu_eff*dic["w"][1],B1/2,0,B2/2],
                    [...],
                    [...],
                    [...],])
@@ -62,7 +63,7 @@ def face_diffusion_WE(face:cc.face_class,dire:str):
 
     # 东侧网格(7号)
     Dx = np.array([[0,0,0,0,0],
-                   [2/3*face.mu_eff*face.nx,-1/3*face.mu_eff*face.ny,B1/2,0,B2/2],
+                   [4/3*face.mu_eff*dic["e"][0],-2/3*face.mu_eff*dic["e"][1],B1/2,0,B2/2],
                    [...],
                    [...],
                    [...],])
@@ -75,7 +76,7 @@ def face_diffusion_WE(face:cc.face_class,dire:str):
 
     # 北侧网格(2号)
     Dx = np.array([[0,0,0,0,0],
-                   [2/3*face.mu_eff*face.west.north.nx,-1/3*face.mu_eff*face.west.north.ny,0,0,0],
+                   [4/3*face.mu_eff*dic["nw"][0],-2/3*face.mu_eff*dic["nw"][1],0,0,0],
                    [...],
                    [...],
                    [...],])
@@ -88,7 +89,7 @@ def face_diffusion_WE(face:cc.face_class,dire:str):
 
     # 东北网格(3号)
     Dx = np.array([[0,0,0,0,0],
-                   [2/3*face.mu_eff*face.east.north.nx,-1/3*face.mu_eff*face.east.north.ny,0,0,0],
+                   [4/3*face.mu_eff*dic["ne"][0],-2/3*face.mu_eff*dic['ne'][1],0,0,0],
                    [...],
                    [...],
                    [...],])
@@ -101,7 +102,7 @@ def face_diffusion_WE(face:cc.face_class,dire:str):
 
     # 南侧网格(10号)
     Dx = np.array([[0,0,0,0,0],
-                   [-2/3*face.mu_eff*face.west.south.nx,1/3*face.mu_eff*face.west.south.ny,0,0,0],
+                   [4/3*face.mu_eff*dic['sw'][0],-2/3*face.mu_eff*dic['sw'][1],0,0,0],
                    [...],
                    [...],
                    [...],])
@@ -114,7 +115,7 @@ def face_diffusion_WE(face:cc.face_class,dire:str):
 
     # 东南网格(11号)
     Dx = np.array([[0,0,0,0,0],
-                   [-2/3*face.mu_eff*face.east.south.nx,1/3*face.mu_eff*face.east.south.ny,0,0,0],
+                   [4/3*face.mu_eff*dic['se'][0],-2/3*face.mu_eff*dic['se'][1],0,0,0],
                    [...],
                    [...],
                    [...],])
@@ -127,7 +128,7 @@ def face_diffusion_WE(face:cc.face_class,dire:str):
 
     # 东东网格(8号)
     Dx = np.array([[0,0,0,0,0],
-                   [2/3*face.mu_eff*face.east.east.nx,-1/3*face.mu_eff*face.east.east.ny,0,0,0],
+                   [4/3*face.mu_eff*dic['ee'][0],-2/3*face.mu_eff*dic["ee"][1],0,0,0],
                    [...],
                    [...],
                    [...],])
@@ -140,7 +141,7 @@ def face_diffusion_WE(face:cc.face_class,dire:str):
 
     # 西侧网格(5号)
     Dx = np.array([[0,0,0,0,0],
-                   [-2/3*face.mu_eff*face.west.west.nx,1/3*face.mu_eff*face.west.west.ny,0,0,0],
+                   [4/3*face.mu_eff*dic['ww'][0],-2/3*face.mu_eff*dic['ww'][1],0,0,0],
                    [...],
                    [...],
                    [...],])

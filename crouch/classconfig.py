@@ -125,7 +125,7 @@ class cell_class:
         m_s, m_n = self.south.mid, self.north.mid
         s_vec = (m_e[0] - m_w[0], m_e[1] - m_w[1])
         n_vec = (m_n[0] - m_s[0], m_n[1] - m_s[1])
-        self.jacobian = [list(s_vec), list(n_vec)]
+        self.jacobian = np.array([list(s_vec), list(n_vec)])
 
     def jacobi(self,A,B):
         A1 = A * self.jacobian[0][0] + B * self.jacobian[0][1]
@@ -145,7 +145,7 @@ class face_class():
         self.me = me            # 一般一个面的高侧为me网格
         self.nei = nei          # 一般一个面的低侧为nei网格
         self.mid = mid
-        self.jacobian = jacobi  # 形式必须是(Xn,Yn;Xs,Ys)
+        self.jacobian = np.array(jacobi)  # 形式必须是(Xn,Yn;Xs,Ys)
 
         # 梯度
         self.ugrad = np.zeros(2)                        # u梯度
