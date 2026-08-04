@@ -164,6 +164,9 @@ class face_class():
         self.S = None                                    # 涡量模S
         self.r = None                                    # 无量纲距离r
         self.mu = None                                   # 分子粘度μ
+        self.tauxx = None                                # 切应力tauxx
+        self.tauxy = None                                # 切应力tauxy
+        self.tauyy = None                                # 切应力tauyy
 
         # 构建面上的参数
         self.form_physics()     # 形成面上物理量,二阶中心差分
@@ -203,8 +206,8 @@ class face_class():
         self.Tgrad = (self.me.Tgrad+self.nei.Tgrad)/2
         self.miublgrad = (self.me.miublgrad+self.nei.miublgrad)/2
 
-    def diffusion_2nd_min_SA(self):
-        """对面上的湍流字典进行二阶中心插值"""
+    def diffusion_2nd_mid_SA(self):
+        """对面上的湍流字典进行二阶中心插值并构建切应力"""
         self.mu_eff = (self.me.mu_eff+self.nei.mu_eff)/2
         self.lambda_eff = (self.me.lambda_eff+self.nei.lambda_eff)/2
         self.chi = (self.me.chi+self.nei.chi)/2
@@ -215,6 +218,9 @@ class face_class():
         self.S = (self.me.S+self.nei.S)/2
         self.r = (self.me.r+self.nei.r)/2
         self.mu = (self.me.mu+self.nei.mu)/2
+        self.tauxx = self.mu_eff * (self.ugrad[0]-1/3*(self.ugrad[0]+self.vgrad[1]))
+        self.tauxy = self.mu_eff * (self.ugrad[1]+self.vgrad[0])
+        self.tauyy = self.mu_eff * (self.vgrad[1]-1/3*(self.ugrad[0]+self.vgrad[1]))
 
     @property
     def vn(self):

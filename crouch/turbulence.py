@@ -23,12 +23,14 @@ def cell_diffusion(cell:cc.cell_class):
     SA_calc_constants(cell)
 
     # 计算东面的结果
+    cell.east.diffusion_2nd_mid_SA()
     directions = ["c", "e", "n", "ne", "s", "se", "ee", "w"]
     results = face_diffusion_WE(cell.east)
     for dire, val in zip(directions, results):
         influence[cc.dic[dire]] += val
 
     # 计算西面的结果
+    cell.west.diffusion_2nd_mid_SA()
     directions = ["w","c","nw","n","sw","s","e","ww"]
     results = face_diffusion_WE(cell.west)
     for dire, val in zip(directions, results):
@@ -43,114 +45,144 @@ def cell_diffusion(cell:cc.cell_class):
 def face_diffusion_WE(face:cc.face_class):
     """计算WE面的扩散项"""
 
-    B0 = 2 * (face.ugrad[0]-1/3*(face.ugrad[0]+face.vgrad[1]))*(face.fv1*(4-3*face.fv1))
-    C0 = 2 * (face.ugrad[1] + face.vgrad[0]) * (face.fv1 * (4-3*face.fv1))
-    E0 = 2 * (face.vgrad[1]-1/3*(face.ugrad[0]+face.vgrad[1]))*(face.fv1*(4-3*face.fv1))
-    B1 = B0 * face.miubl ; C1 = C0 * face.miubl ; E1 = E0 * face.miubl
-    B2 = B0 * face.rho ; C2 = C0 * face.rho ; E2 = E0 * face.rho
+    F0 = (face.fv1*(4-3*face.fv1))
+    B0 = 2 * (face.ugrad[0]-1/3*(face.ugrad[0]+face.vgrad[1]))* F0
+    C0 = 2 * (face.ugrad[1] + face.vgrad[0]) * F0
+    E0 = 2 * (face.vgrad[1]-1/3*(face.ugrad[0]+face.vgrad[1]))* F0
+    G0 = face.Tgrad[0] * F0 / cc.Prt 
+    B1 = B0 * face.miubl ; C1 = C0 * face.miubl ; E1 = E0 * face.miubl ; G1 = G0 * face.miubl
+    B2 = B0 * face.rho ; C2 = C0 * face.rho ; E2 = E0 * face.rho ; G2 = G0 * face.rho
     dic = grad.green_gauss_face_vari_WE(face)
 
     # 中心网格(6号),以下均以东侧网格为例,西侧网格的相对位置关系也是一致的.
+    dire = dic["w"]
     Dx = np.array([[0,0,0,0,0],
-                   [B1/2,4/3*face.mu_eff*dic["w"][0],-2/3*face.mu_eff*dic["w"][1],0,B2/2],
-                   [C1/2,face.mu_eff*dic["w"][1],face.mu_eff*dic["w"][0],0,C2/2],
-                   [...],
+                   [B1/2,4/3*face.mu_eff*dire[0],-2/3*face.mu_eff*dire[1],0,B2/2],
+                   [C1/2,face.mu_eff*dire[1],face.mu_eff*dire[0],0,C2/2],
+                   [face.u*B1/2+face.v*C1/2+G1/2,face.tauxx/2+4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
+                    face.tauxy/2-2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],
+                    face.u*B2/2+face.v*C2/2+G2/2],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [C1/2,face.mu_eff*dic["w"][1],face.mu_eff*dic["w"][0],0,C2/2],
-                   [E1/2,-2/3*face.mu_eff*dic["w"][0],4/3*face.mu_eff*dic["w"][1],0,E2/2],
-                   [...],
+                   [C1/2,face.mu_eff*dire[1],face.mu_eff*dire[0],0,C2/2],
+                   [E1/2,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,E2/2],
+                   [face.u*C1/2+face.v*E1/2+G1/2,face.tauxy/2+face.u*face.mu_eff*dire[1]-2/3*face.v*face.mu_eff*dire[0],
+                   face.tauyy/2+face.u*face.mu_eff*dire[1]+4/3*face.v*face.mu_eff*dire[0],face.lambda_eff*dire[1],
+                   face.u*C2/2+face.v*E2/2+G2/2],
                    [...]])
     D6 = face.jacobi(Dx,Dy)[0]
 
     # 东侧网格(7号)
+    dire = dic['e']
     Dx = np.array([[0,0,0,0,0],
-                   [B1/2,4/3*face.mu_eff*dic["e"][0],-2/3*face.mu_eff*dic["e"][1],0,B2/2],
-                   [C1/2,face.mu_eff*dic['e'][1],face.mu_eff*dic["e"][0],0,C2/2],
-                   [...],
+                   [B1/2,4/3*face.mu_eff*dire[0],-2/3*face.mu_eff*dire[1],0,B2/2],
+                   [C1/2,face.mu_eff*dire[1],face.mu_eff*dire[0],0,C2/2],
+                   [face.u*B1/2+face.v*C1/2+G1/2,face.tauxx/2+4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
+                    face.tauxy/2-2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],
+                    face.u*B2/2+face.v*C2/2+G2/2],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [C1/2,face.mu_eff*dic['e'][1],face.mu_eff*dic["e"][0],0,C2/2],
-                   [E1/2,-2/3*face.mu_eff*dic["e"][0],4/3*face.mu_eff*dic["e"][1],0,E2/2],
-                   [...],
+                   [C1/2,face.mu_eff*dire[1],face.mu_eff*dire[0],0,C2/2],
+                   [E1/2,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,E2/2],
+                   [face.u*C1/2+face.v*E1/2+G1/2,face.tauxy/2+face.u*face.mu_eff*dire[1]-2/3*face.v*face.mu_eff*dire[0],
+                   face.tauyy/2+face.u*face.mu_eff*dire[1]+4/3*face.v*face.mu_eff*dire[0],face.lambda_eff*dire[1],
+                   face.u*C2/2+face.v*E2/2+G2/2],
                    [...]])
     D7 = face.jacobi(Dx,Dy)[0]
 
     # 北侧网格(2号)
+    dire = dic["nw"]
     Dx = np.array([[0,0,0,0,0],
-                   [0,4/3*face.mu_eff*dic["nw"][0],-2/3*face.mu_eff*dic["nw"][1],0,0],
-                   [0,face.mu_eff*dic["nw"][1],face.mu_eff*dic["nw"][0],0,0],
-                   [...],
+                   [0,4/3*face.mu_eff*dire[0],-2/3*face.mu_eff*dire[1],0,0],
+                   [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
+                   [0,4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
+                    -2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],0],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [0,face.mu_eff*dic["nw"][1],face.mu_eff*dic["nw"][0],0,0],
-                   [0,-2/3*face.mu_eff*dic["nw"][0],4/3*face.mu_eff*dic["nw"][1],0,0],
-                   [...],
+                   [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
+                   [0,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,0],
+                   [0,face.u*face.mu_eff*dire[1]-2/3*face.v*face.mu_eff*dire[0],
+                   face.u*face.mu_eff*dire[1]+4/3*face.v*face.mu_eff*dire[0],face.lambda_eff*dire[1],0],
                    [...]])
     D2 = face.jacobi(Dx,Dy)[0]
 
     # 东北网格(3号)
+    dire = dic["ne"]
     Dx = np.array([[0,0,0,0,0],
-                   [0,4/3*face.mu_eff*dic["ne"][0],-2/3*face.mu_eff*dic['ne'][1],0,0],
-                   [0,face.mu_eff*dic['ne'][1],face.mu_eff*dic['ne'][0],0,0],
-                   [...],
+                   [0,4/3*face.mu_eff*dire[0],-2/3*face.mu_eff*dire[1],0,0],
+                   [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
+                   [0,4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
+                    -2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],0],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [0,face.mu_eff*dic['ne'][1],face.mu_eff*dic['ne'][0],0,0],
-                   [0,-2/3*face.mu_eff*dic['ne'][0],4/3*face.mu_eff*dic['ne'][1],0,0],
-                   [...],
+                   [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
+                   [0,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,0],
+                   [0,face.u*face.mu_eff*dire[1]-2/3*face.v*face.mu_eff*dire[0],
+                   face.u*face.mu_eff*dire[1]+4/3*face.v*face.mu_eff*dire[0],face.lambda_eff*dire[1],0],
                    [...]])
     D3 = face.jacobi(Dx,Dy)[0]
 
     # 南侧网格(10号)
+    dire = dic["sw"]
     Dx = np.array([[0,0,0,0,0],
-                   [0,4/3*face.mu_eff*dic['sw'][0],-2/3*face.mu_eff*dic['sw'][1],0,0],
-                   [0,face.mu_eff*dic['sw'][1],face.mu_eff*dic['sw'][0],0,0],
-                   [...],
+                   [0,4/3*face.mu_eff*dire[0],-2/3*face.mu_eff*dire[1],0,0],
+                   [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
+                   [0,4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
+                    -2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],0],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [0,face.mu_eff*dic['sw'][1],face.mu_eff*dic['sw'][0],0,0],
-                   [0,-2/3*face.mu_eff*dic['sw'][0],4/3*face.mu_eff*dic['sw'][1],0,0],
-                   [...],
+                   [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
+                   [0,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,0],
+                   [0,face.u*face.mu_eff*dire[1]-2/3*face.v*face.mu_eff*dire[0],
+                   face.u*face.mu_eff*dire[1]+4/3*face.v*face.mu_eff*dire[0],face.lambda_eff*dire[1],0],
                    [...]])
     D10 = face.jacobi(Dx,Dy)[0]
 
     # 东南网格(11号)
+    dire = dic["se"]
     Dx = np.array([[0,0,0,0,0],
-                   [0,4/3*face.mu_eff*dic['se'][0],-2/3*face.mu_eff*dic['se'][1],0,0],
-                   [0,face.mu_eff*dic['se'][1],face.mu_eff*dic['se'][0],0,0],
-                   [...],
+                   [0,4/3*face.mu_eff*dire[0],-2/3*face.mu_eff*dire[1],0,0],
+                   [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
+                   [0,4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
+                    -2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],0],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [0,face.mu_eff*dic['se'][1],face.mu_eff*dic['se'][0],0,0],
-                   [0,-2/3*face.mu_eff*dic['se'][0],4/3*face.mu_eff*dic['se'][1],0,0],
-                   [...],
+                   [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
+                   [0,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,0],
+                   [0,face.u*face.mu_eff*dire[1]-2/3*face.v*face.mu_eff*dire[0],
+                   face.u*face.mu_eff*dire[1]+4/3*face.v*face.mu_eff*dire[0],face.lambda_eff*dire[1],0],
                    [...]])
     D11 = face.jacobi(Dx,Dy)[0]
 
     # 东东网格(8号)
+    dire = dic["ee"]
     Dx = np.array([[0,0,0,0,0],
-                   [0,4/3*face.mu_eff*dic['ee'][0],-2/3*face.mu_eff*dic["ee"][1],0,0],
-                   [0,face.mu_eff*dic['ee'][1],face.mu_eff*dic['ee'][0],0,0],
-                   [...],
+                   [0,4/3*face.mu_eff*dire[0],-2/3*face.mu_eff*dire[1],0,0],
+                   [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
+                   [0,4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
+                    -2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],0],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [0,face.mu_eff*dic['ee'][1],face.mu_eff*dic['ee'][0],0,0],
-                   [0,-2/3*face.mu_eff*dic["ee"][0],4/3*face.mu_eff*dic["ee"][1],0,0],
-                   [...],
+                   [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
+                   [0,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,0],
+                   [0,face.u*face.mu_eff*dire[1]-2/3*face.v*face.mu_eff*dire[0],
+                   face.u*face.mu_eff*dire[1]+4/3*face.v*face.mu_eff*dire[0],face.lambda_eff*dire[1],0],
                    [...]])
     D8 = face.jacobi(Dx,Dy)[0]
 
     # 西侧网格(5号)
+    dire = dic["ww"]
     Dx = np.array([[0,0,0,0,0],
-                   [0,4/3*face.mu_eff*dic['ww'][0],-2/3*face.mu_eff*dic['ww'][1],0,0],
-                   [0,face.mu_eff*dic['ww'][1],face.mu_eff*dic['ww'][0],0,0],
-                   [...],
+                   [0,4/3*face.mu_eff*dire[0],-2/3*face.mu_eff*dire[1],0,0],
+                   [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
+                   [0,4/3*face.u*face.mu_eff*dire[0]+face.v*face.mu_eff*dire[1],
+                    -2/3*face.u*face.mu_eff*dire[1]+face.v*face.mu_eff*dire[0],face.lambda_eff*dire[0],0],
                    [...],])
     Dy = np.array([[0,0,0,0,0],
-                   [0,face.mu_eff*dic['ww'][1],face.mu_eff*dic['ww'][0],0,0],
-                   [0,-2/3*face.mu_eff*dic['ww'][0],4/3*face.mu_eff*dic['ww'][1],0,0],
-                   [...],
+                   [0,face.mu_eff*dire[1],face.mu_eff*dire[0],0,0],
+                   [0,-2/3*face.mu_eff*dire[0],4/3*face.mu_eff*dire[1],0,0],
+                   [0,face.u*face.mu_eff*dire[1]-2/3*face.v*face.mu_eff*dire[0],
+                   face.u*face.mu_eff*dire[1]+4/3*face.v*face.mu_eff*dire[0],face.lambda_eff*dire[1],0],
                    [...]])
     D5 = face.jacobi(Dx,Dy)[0]
 
