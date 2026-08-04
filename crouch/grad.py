@@ -7,26 +7,45 @@ def green_gauss_constant(face:cc.face_class):
     green_gauss_from_JST(face.nei,face.nei.north,face.nei.south,face.nei.east,face.nei.west)
     face.grad_2nd_mid()
 
-def green_gauss_face_vari_WE(face:cc.face_class):
+def green_gauss_face_vari(face:cc.face_class):
     """计算某个`face`的梯度影响矩阵,根据green-gauss方法,会和8个网格挂钩\n
        为了看起来舒服,会返回一个字典."""
-    
-    grad_dic = {}
-    east = face.east;west = face.west
-    grad_dic['w'] = ((west.north.jacobian[0]-west.south.jacobian[0]+
-                     west.east.jacobian[0]-west.west.jacobian[0])/west.vol/4 -
-                     east.west.jacobian[0]/east.vol/4) 
-    grad_dic['e'] = ((east.north.jacobian[0]-east.south.jacobian[0]+
-                     east.east.jacobian[0]-east.west.jacobian[0])/east.vol/4 +
-                     west.east.jacobian[0]/west.vol/4)
-    grad_dic['nw'] = (west.north.jacobian[0])/west.vol/4
-    grad_dic['ne'] = (east.north.jacobian[0])/east.vol/4
-    grad_dic['sw'] = -(west.south.jacobian[0])/west.vol/4
-    grad_dic['se'] = -(east.south.jacobian[0])/east.vol/4
-    grad_dic['ee'] = (east.east.jacobian[0])/east.vol/4
-    grad_dic['ww'] = -(west.west.jacobian[0])/west.vol/4
 
-    return grad_dic
+    if face.direction == "WE" :
+        grad_dic = {}
+        east = face.east;west = face.west
+        grad_dic['w'] = ((west.north.jacobian[0]-west.south.jacobian[0]+
+                        west.east.jacobian[0]-west.west.jacobian[0])/west.vol/4 -
+                        east.west.jacobian[0]/east.vol/4) 
+        grad_dic['e'] = ((east.north.jacobian[0]-east.south.jacobian[0]+
+                        east.east.jacobian[0]-east.west.jacobian[0])/east.vol/4 +
+                        west.east.jacobian[0]/west.vol/4)
+        grad_dic['nw'] = (west.north.jacobian[0])/west.vol/4
+        grad_dic['ne'] = (east.north.jacobian[0])/east.vol/4
+        grad_dic['sw'] = -(west.south.jacobian[0])/west.vol/4
+        grad_dic['se'] = -(east.south.jacobian[0])/east.vol/4
+        grad_dic['ee'] = (east.east.jacobian[0])/east.vol/4
+        grad_dic['ww'] = -(west.west.jacobian[0])/west.vol/4
+        return grad_dic
+
+    elif face.direction != "NS" : 
+        grad_dic = {}
+        north = face.north; south = face.south
+        grad_dic['n'] = ((north.north.jacobian[0]-north.south.jacobian[0]+
+                        north.east.jacobian[0]-north.west.jacobian[0])/north.vol/4 +
+                        south.north.jacobian[0]/south.vol/4)
+        grad_dic['s'] = ((south.north.jacobian[0]-south.south.jacobian[0]+
+                        south.east.jacobian[0]-south.west.jacobian[0])/south.vol/4 -
+                        north.south.jacobian[0]/north.vol/4)
+        grad_dic['ne'] = (north.east.jacobian[0])/north.vol/4
+        grad_dic['se'] = (south.east.jacobian[0])/south.vol/4
+        grad_dic['nw'] = -(north.west.jacobian[0])/north.vol/4
+        grad_dic['sw'] = -(south.west.jacobian[0])/south.vol/4
+        grad_dic['nn'] = (north.north.jacobian[0])/north.vol/4
+        grad_dic['ss'] = -(south.south.jacobian[0])/south.vol/4
+        return grad_dic
+
+    else: raise ValueError("face.direction must be 'WE' or 'NS'")
 
 def green_gauss_from_JST(cell:cc.cell_class,face1:cc.face_class,face2:cc.face_class,
                     face3:cc.face_class,face4:cc.face_class):

@@ -146,8 +146,7 @@ class cell_class:
 class face_class():
     def __init__(self,direction:str,mid:tuple,jacobi,
                  me:cell_class,nei:cell_class):
-        """`me`是本网格,`nei`指的是邻居网格,`direction`指的是邻居网格在本网格的区位\n
-        'N'表示北面,`S`表示南面,`E`表示东面,`W`表示西面\n"""
+        """`me`是本网格,`nei`指的是邻居网格,`direction`指的是种类,有且仅有`WE`和`NS`"""
         self.direction = direction
         self.me = me            # 一般一个面的高侧为me网格
         self.nei = nei          # 一般一个面的低侧为nei网格
