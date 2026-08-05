@@ -1,6 +1,7 @@
 import classconfig as cc
 import numpy as np
 import grad
+import math
 
 # TODO:在粘性构建以前,要确保每个单元有有效的粘性参数,即执行SA_calc_constantsa,
 # TODO:随后对面上进行cell.north.diffusion_2nd_mid_SA(),
@@ -18,6 +19,16 @@ def SA_calc_constants(cell:cc.cell_class):
 
     # 计算有效导热系数λeff的公式
     cell.lambda_eff = cell.mu/cc.Pr + (cell.rho * cell.miubl * cell.fv1)/cc.Prt
+
+    # 计算源项部分参数:
+    cell.ft2 = cc.Ct3 * math.exp(-cc.Ct4 * (cell.chi**2))
+    cell.fv2 = 1 - (cell.chi)/(1+cell.chi * cell.fv1)
+    cell.Omega = abs(cell.ugrad[1] - cell.vgrad[0])
+    cell.Sbl = cell.Omega + cell.fv2 * cell.miubl /((cc.kappa*cell.sad)**2)
+    cell.r = cell.miubl/(cell.Sbl * cc.kappa**2 * cell.sad**2)
+    cell.g = cell.r + cc.Cw2 * (cell.r**6 -cell.r)
+    cell.fw = cell.g * ((1+cc.Cw1**6)/(cell.g**6+cc.Cw1**6))**(1/6)
+    cell.S = math.sqrt(2*cell.ugrad[0]**2 + 2*cell.vgrad[1]**2 + (cell.ugrad[1]+cell.vgrad[0])**2)
 
 def cell_diffusion(cell:cc.cell_class):
     """计算单元扩散项矩阵,在进行这一函数之前,**必须**对**所有单元和面**执行`SA_calc_constants`"""
@@ -205,38 +216,3 @@ def face_diffusion(face:cc.face_class):
     D5 = face.jacobi(Dx,Dy)[jacobiflag]
 
     return D6,D7,D2,D3,D10,D11,D8,D5
-
-
-# ————————————————————————————————————————————————————————————————————————————————————————————————————
-# def form_face_diffusion_1stbounded(face:cc.face_class,cell_1:cc.cell_class,cell_2:cc.cell_class):
-#     """根据相邻单元的湍流扩散项计算面上的湍流扩散项`DiffuTurb`.采用一阶中心差分"""
-#     face_diff = (cell_1.DiffuTurb + cell_2.DiffuTurb) / 2.0
-#     normal = np.array([face.nx, face.ny])
-#     face.DiffuTurb = face_diff @ normal
-
-# def form_source_term(cell:cc.cell_class):
-#     """计算单元的湍流源项`S`"""
-#     # the first term
-#     ft2 = cc.Ct3 * math.exp(-cc.Ct4 * cell.chi**2)  # 生产项修正函数ft2
-#     fv2 = 1-cell.chi/(1+cell.chi*cell.fv1)          # 涡量修正函数fv2
-#     # BUGFIX: 二维涡量 ω = ∂v/∂x − ∂u/∂y,原式取的是 ½(∂u/∂y − ∂v/∂x) = −ω/2,
-#     #         再乘 √2 得到 |ω|/√2,比正确的涡量模 S = √(2ΩᵢⱼΩᵢⱼ) = |ω| 小 √2 倍.
-#     Omega = cell.vgrad[1] - cell.ugrad[2]           # 计算涡量Omega
-#     S = cc.fv3 * abs(Omega)                         # 计算涡量模S
-#     nu_tilde = cell.U[5]/cell.U[1]                  # ν̃
-#     inv_kd2 = 1.0/(cc.kappa**2 * cell.sad**2)       # 1/(κ²d²)
-#     Sbl = S + nu_tilde*inv_kd2*fv2                  # 计算修正涡量S̃
-#     # BUGFIX: S̃ 可能为 0 甚至为负(fv2 < 0 时),下方 r = ν̃/(S̃κ²d²) 会除零/发散.
-#     #         按 Allmaras 2012 的建议对 S̃ 做下限截断.
-#     Sbl = max(Sbl, 1e-10)
-#     P = cc.Cb1 * (1-ft2) * Sbl * cell.U[5]          # 计算生成项P
-#     # the second term
-#     r = min(nu_tilde/Sbl*inv_kd2, cc.rmax)          # 无量纲sad
-#     g = r + cc.Cw2 * (r**6 - r)
-#     fw = g * ((1+cc.Cw3**6)/(g**6 + cc.Cw3**6))**(1/6) # 壁面阻尼函数fw
-#     D = ((cc.Cw1 * fw - cc.Cb1 /(cc.kappa**2) * ft2) *
-#          cell.U[1] *(nu_tilde/cell.sad)**2)         # 计算破坏项D
-#     # the third term
-#     G = cc.Cb2 * cc.inv_sigma * cell.U[1] * float(cell.miublgrad @ cell.miublgrad)
-#     # form the final source term
-#     cell.S = np.array([0.0,0.0,0.0,0.0,0.0,P-D+G]) * cell.vol
