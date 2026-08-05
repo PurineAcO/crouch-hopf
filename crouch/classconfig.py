@@ -133,14 +133,14 @@ class cell_class:
         A2 = A * self.jacobian[1][0] + B * self.jacobian[1][1]
         return A1,A2
 
-    def convect_jacobi(self):
-        return self.jacobi(self.F, self.G)
+    # def convect_jacobi(self):
+    #     return self.jacobi(self.F, self.G)
 
-    def viscous_convect_jacobi(self):
-        vsF,vsG = self.jacobi(np.array([self.u*self.miubl,self.rho*self.miubl,0,0,self.rho*self.u]),
-                           np.array([self.v*self.miubl,0,self.rho*self.miubl,0,self.rho*self.v]))
-        return (np.array([np.zeros(5),np.zeros(5),np.zeros(5),np.zeros(5),vsF]), 
-                np.array([np.zeros(5),np.zeros(5),np.zeros(5),np.zeros(5),vsG]))
+    def viscous_convect_vec(self):
+        """返回的是两个向量"""
+        return (np.array([self.u*self.miubl,self.rho*self.miubl,0,0,self.rho*self.u]),
+                np.array([self.v*self.miubl,0,self.rho*self.miubl,0,self.rho*self.v]))
+
 
 
 class face_class():

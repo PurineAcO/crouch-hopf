@@ -2,6 +2,10 @@ import classconfig as cc
 import numpy as np
 import grad
 
+# TODO:在粘性构建以前,要确保每个单元有有效的粘性参数,即执行SA_calc_constantsa,
+# TODO:随后对面上进行cell.north.diffusion_2nd_mid_SA(),
+# TODO:在以上两条前,要进行常数梯度grad.green_gauss_constant的构建.
+
 def SA_calc_constants(cell:cc.cell_class):
     """计算Spalart-Allmaras湍流模型引起的有效粘度系数*μeff*,\n
     执行这个函数以前请确保`grad.green_gauss_constant`已执行"""
@@ -20,31 +24,26 @@ def cell_diffusion(cell:cc.cell_class):
 
     # 初始化总的影响矩阵
     influence = [np.zeros((5,5)) for _ in range(13)]
-    SA_calc_constants(cell)
 
     # 计算东面的结果
-    cell.east.diffusion_2nd_mid_SA()
     directions = ["c", "e", "n", "ne", "s", "se", "ee", "w"]
     results = face_diffusion(cell.east)
     for dire, val in zip(directions, results):
         influence[cc.dic[dire]] += val
 
     # 计算西面的结果
-    cell.west.diffusion_2nd_mid_SA()
     directions = ["w","c","nw","n","sw","s","e","ww"]
     results = face_diffusion(cell.west)
     for dire, val in zip(directions, results):
         influence[cc.dic[dire]] += val
 
     # 计算南面的结果
-    cell.south.diffusion_2nd_mid_SA()
     directions = ["s","c","se","sw","ss","w","n","e"]
     results = face_diffusion(cell.south)
     for dire, val in zip(directions, results):
         influence[cc.dic[dire]] += val
 
     # 计算北面的结果
-    cell.north.diffusion_2nd_mid_SA()
     directions = ["c","n","e","w","s","nw","nn","ne"]
     results = face_diffusion(cell.north)
     for dire, val in zip(directions, results):
