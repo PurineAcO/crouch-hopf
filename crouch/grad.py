@@ -47,6 +47,20 @@ def green_gauss_face_vari(face:cc.face_class):
 
     else: raise ValueError("face.direction must be 'WE' or 'NS'")
 
+def green_gauss_cell_vari(cell:cc.cell_class):
+    """计算某个`cell`的梯度影响矩阵,根据green-gauss方法,会和5个网格挂钩\n
+       为了看起来舒服,会返回一个字典."""
+
+    grad_dic = {}
+    grad_dic['c'] = (cell.north.jacobian[0]+cell.south.jacobian[0]+
+                    cell.east.jacobian[0]+cell.west.jacobian[0])/cell.vol/2
+    grad_dic['n'] = (cell.north.jacobian[0])/cell.vol/2
+    grad_dic['s'] = -(cell.south.jacobian[0])/cell.vol/2
+    grad_dic['e'] = (cell.east.jacobian[0])/cell.vol/2
+    grad_dic['w'] = -(cell.west.jacobian[0])/cell.vol/2
+    return grad_dic
+    
+
 def green_gauss_from_JST(cell:cc.cell_class,face1:cc.face_class,face2:cc.face_class,
                     face3:cc.face_class,face4:cc.face_class):
         """基于Green-Guass的梯度构建""" 

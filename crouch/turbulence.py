@@ -25,9 +25,9 @@ def SA_calc_constants(cell:cc.cell_class):
     cell.fv2 = 1 - (cell.chi)/(1+cell.chi * cell.fv1)
     cell.Omega = abs(cell.ugrad[1] - cell.vgrad[0])
     cell.Sbl = cell.Omega + cell.fv2 * cell.miubl /((cc.kappa*cell.sad)**2)
-    cell.r = cell.miubl/(cell.Sbl * cc.kappa**2 * cell.sad**2)
+    cell.r = min(cell.miubl/(cell.Sbl * cc.kappa**2 * cell.sad**2),cc.rmax)
     cell.g = cell.r + cc.Cw2 * (cell.r**6 -cell.r)
-    cell.fw = cell.g * ((1+cc.Cw1**6)/(cell.g**6+cc.Cw1**6))**(1/6)
+    cell.fw = cell.g * ((1+cc.Cw3**6)/(cell.g**6+cc.Cw3**6))**(1/6)
     cell.S = math.sqrt(2*cell.ugrad[0]**2 + 2*cell.vgrad[1]**2 + (cell.ugrad[1]+cell.vgrad[0])**2)
 
 def cell_diffusion(cell:cc.cell_class):
@@ -61,7 +61,7 @@ def cell_diffusion(cell:cc.cell_class):
         influence[cc.dic[dire]] += val
 
 def face_diffusion(face:cc.face_class):
-    """计算WE面的扩散项"""
+    """计算面上的湍流扩散项"""
 
     F0 = (face.fv1*(4-3*face.fv1))
     B0 = 2 * (face.ugrad[0]-1/3*(face.ugrad[0]+face.vgrad[1]))* F0
@@ -216,3 +216,50 @@ def face_diffusion(face:cc.face_class):
     D5 = face.jacobi(Dx,Dy)[jacobiflag]
 
     return D6,D7,D2,D3,D10,D11,D8,D5
+
+def cell_source(cell:cc.cell_class):
+    """邢程单元上的源项矩阵,返回一个列表,顺序为中北南东西\n
+    *这一段十分繁复,作者于2026年8月5日推了一整天,最终发现了原文的3处错误.*"""
+
+    influent = [None,None,None,None,None]
+
+    # 用到的几个导数项
+    dfv2 = (3*cell.chi*cell.fv1*(1-cell.fv1) - 1)/((1+cell.chi*cell.fv1)**2)
+    dft2 = -2 * cell.chi * cc.Ct4 * cell.ft2
+    dfw = cell.fw/cell.g * (cc.Cw3**6)/(cell.g**6 + cc.Cw3**6) * (1-cc.Cw2+6*cc.Cw2*cell.r**5)
+
+    # 恒定部分,本家网格承担了密度、温度、湍流粘度的全部内容和u,v的部分内容
+    R1 = cc.Cb1 * (1- cell.ft2 - cell.chi * dft2 )
+    R2 = cc.Cb1 * cell.r * (cell.chi * dfv2 *(1-cell.ft2) + cell.ft2 + cell.chi * dft2)
+    R3 = -cc.Cw1 * cc.kappa**2 * cell.r * (cell.fw - dfw * dfv2 * cell.r**2 * cell.chi)
+    R4 = cc.Cb2 * cc.inv_sigma * (cell.miublgrad[0]**2 + cell.miublgrad[1]**2)
+    R5 = -cc.C5 * cell.miubl**2 * cell.S**2 /(cc.gamma * cc.R * cell.T)
+    R = (R1+R2+R3) * cell.Sbl * cell.miubl + R4 + R5
+
+    M1 = cc.Cb1 * (1- cell.ft2 - cell.chi * dft2)
+    M2 = cc.Cb1 * cell.r * ((cell.fv2 + cell.chi * dfv2)*(1-cell.ft2) + 2* cell.ft2 + cell.chi * dft2)
+    M3 = -cc.Cw1 * cc.kappa**2 * cell.r * (2*cell.fw + cell.r * dfw - cell.r**2 * dfw *(cell.fv2 + cell.chi * dfv2))
+    M4 = -2* cc.C5 * cell.rho *cell.miubl *cell.S**2 /(cc.gamma * cc.R * cell.T)
+    M0 = (M1+M2+M3) * cell.Sbl * cell.rho + M4
+
+    T = cc.C5 * cell.rho * cell.miubl**2 * cell.S**2 /(cc.gamma * cc.R * cell.T**2)
+
+    # 梯度部分常数
+    O1 = cell.rho *cell.miubl /cell.Omega * (cc.Cb1*(1-cell.ft2) + cc.Cw1*cc.kappa**2*cell.r**2*dfw) * (cell.ugrad[1]-cell.vgrad[0])
+    O2 = 2 * cc.Cb2 * cc.inv_sigma * cell.rho
+    O3 = -2 * cc.C5 * cell.rho *cell.miubl**2 /(cc.gamma * cc.R * cell.T)
+    O4 = O3 * (cell.ugrad[1] + cell.vgrad[0])
+    dic = grad.green_gauss_cell_vari(cell)
+
+    # 中心网格c
+    directions = ["c","n","s","e","w"]
+    for dire in directions:
+        U = O1 * dic[dire][1] + O4 * dic[dire][1] + O3 * 2 * cell.ugrad[0]*dic[dire][0]
+        V = -O1 * dic[dire][0] + O4 * dic[dire][0] + O3 * 2 * cell.vgrad[1]*dic[dire][1]
+        M = O2 * (cell.miublgrad[0] * dic[dire][0] + cell.miublgrad[1] * dic[dire][1])
+        if dire == "c":
+            influent[0] = np.array([R,U,V,T,M+M0])
+        else:
+            influent[directions.index(dire)] = np.array([0,U,V,0,M])
+
+    return influent

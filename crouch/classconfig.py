@@ -24,10 +24,12 @@ Cw1 = _CONFIG["turbulence"]["Cw1"]          # 破坏项常数Cw1
 Cw2 = _CONFIG["turbulence"]["Cw2"]          # 壁面阻尼函数常数Cw2
 Cw3 = _CONFIG["turbulence"]["Cw3"]          # 壁面阻尼函数常数Cw3
 rmax = _CONFIG["turbulence"]["rmax"]        # 无量纲距离r的上限
+C5 = _CONFIG["turbulence"]["C5"]            # 可压缩修正常数C5
 
 # ————————————————————physics constants(Sutherland等空气性质)——————————————————
 R = _CONFIG["physics"]["R"]                 # 气体常数
 cp = _CONFIG["physics"]["cp"]               # 空气定压比热
+gamma = _CONFIG["physics"]["gamma"]         # 空气比热比
 mu0 = _CONFIG["physics"]["mu0"]             # Sutherland公式参考粘度
 T0 = _CONFIG["physics"]["T0"]               # Sutherland公式参考温度
 Ts = _CONFIG["physics"]["Ts"]               # Sutherland公式Sutherland温度
