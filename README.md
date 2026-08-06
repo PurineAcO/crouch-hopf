@@ -107,9 +107,7 @@ $$\tau'_{yy} = 2 \bar{\mu}_{\text{eff}} \left( \frac{2}{3} \frac{\partial v'}{\p
 
 考虑热流 $\phi_x,\phi_y$ 的导数:
 
-$$\phi'_x = \bar{\lambda}_{\text{eff}} \frac{\partial T'}{\partial x} + \lambda'_{\text{eff}} \frac{\partial \bar{T}}{\partial x},
-
-\phi'_y = \bar{\lambda}_{\text{eff}} \frac{\partial T'}{\partial y} + \lambda'_{\text{eff}} \frac{\partial \bar{T}}{\partial y}.$$
+$$\phi'_x = \bar{\lambda}_{\text{eff}} \frac{\partial T'}{\partial x} + \lambda'_{\text{eff}} \frac{\partial \bar{T}}{\partial x},\phi'_y = \bar{\lambda}_{\text{eff}} \frac{\partial T'}{\partial y} + \lambda'_{\text{eff}} \frac{\partial \bar{T}}{\partial y}$$
 
 这里我们遇到了第一处难点,就是如何对 $\mu_\mathrm{eff}'$ 和 $\lambda_\mathrm{eff}'$ 划归到 $\boldsymbol{q}'$ 上?后者实际上是前者除以湍流普朗特数 $Pr_t$ 的结果
 
@@ -130,15 +128,12 @@ $$\mu_\mathrm{eff}' =  \rho' \bar{f}_{v1} \bar{\tilde{\nu}} +( \rho'  \bar{\tild
 ### 3.2 湍流源项
 
 真正的大部头存在于湍流方程的源项,首先阐述无量纲壁面距离 $r$ : 
+
 $$ r' = \frac{\nu'}{\bar{S} \kappa^2 d^2} - \frac{\bar{\nu} \tilde{S}'}{\bar{S}^2 \kappa^2 d^2} $$
 
-考虑生成项 $ G = \rho C_{b1} (1 - f_{t2}) \tilde{S} \tilde{\nu} $ 的求导:
-$$
-\begin{aligned}
-G' &= C_{b1} \left[ \rho' (1-\bar{f}_{t2}) \bar{S} \bar{\nu} + \bar{\rho} (- f_{t2}') \bar{S} \bar{\nu} + \bar{\rho} (1-\bar{f}_{t2}) \tilde{S}' \bar{\nu} + \bar{\rho} (1-\bar{f}_{t2}) \bar{S} \nu' \right] \\
-&= C_{b1} \left[ \bar{S} \bar{\nu} (1-\bar{f}_{t2}) \rho' - \bar{\rho} \bar{S} \bar{\nu} f_{t2}' \chi' + \bar{\rho} \bar{\nu} (1-\bar{f}_{t2}) \tilde{S}' + \bar{\rho} \bar{S} (1-\bar{f}_{t2}) \nu' \right].
-\end{aligned}
-$$
+考虑生成项 $G = \rho C_{b1} (1 - f_{t2}) \tilde{S} \tilde{\nu}$ 的求导:
+
+$$G' = C_{b1} \left( \rho' (1-\bar{f}_{t2}) \bar{S} \bar{\nu} + \bar{\rho} (- f_{t2}') \bar{S} \bar{\nu} + \bar{\rho} (1-\bar{f}_{t2}) \tilde{S}' \bar{\nu} + \bar{\rho} (1-\bar{f}_{t2}) \bar{S} \nu' \right) = C_{b1} \left( \bar{S} \bar{\nu} (1-\bar{f}_{t2}) \rho' - \bar{\rho} \bar{S} \bar{\nu} f_{t2}' \chi' + \bar{\rho} \bar{\nu} (1-\bar{f}_{t2}) \tilde{S}' + \bar{\rho} \bar{S} (1-\bar{f}_{t2}) \nu' \right)$$
 
 其中:
 
@@ -156,7 +151,7 @@ $$f_{t2}' := \frac{\partial \bar{f}_{t2}}{\partial \chi} = -2 \bar{\chi} C_{t4} 
 
 $$f_{v2}' := \frac{\partial \bar{f}_{v2}}{\partial \chi} = \frac{3 \bar{\chi} \bar{f}_{v1} (1-\bar{f}_{v1}) -1}{(1+\chi \bar{f}_{v1})^2} $$
 
-考虑壁面衰减项 $D= - \rho \left( C_{w1} f_w - \frac{C_{b1}}{\kappa^2} f_{t2} \right) \left( \frac{\tilde{\nu}}{d} \right)^2 $ 的求导:
+考虑壁面衰减项 $D= - \rho \left( C_{w1} f_w - \frac{C_{b1}}{\kappa^2} f_{t2} \right) \left( \frac{\tilde{\nu}}{d} \right)^2$ 的求导:
 
 $$
 \begin{aligned}
@@ -171,13 +166,13 @@ $$ f_w' := \frac{\partial \bar{f}_w}{\partial r} = \frac{\bar{f}_w}{g} \frac{C_{
 
 其中 $g:=r +C_{w2} (r^6-r)$
 
-考虑交叉扩散项 $X = \frac{C_{b2}}{\sigma} \rho (\nabla \tilde{\nu})^2 $ 的求导:
+考虑交叉扩散项 $X = \frac{C_{b2}}{\sigma} \rho (\nabla \tilde{\nu})^2$ 的求导:
 
 $$
 X' = \frac{C_{b2}}{\sigma} \left[ \rho' (\nabla \bar{\nu})^2 + 2 \bar{\rho} \nabla \bar{\nu} \cdot \nabla \nu' \right]
 $$
 
-考虑压缩性修正项 $ C = - C_5 \frac{\rho \tilde{\nu}^2 S^2}{\gamma R T} $ 的求导:
+考虑压缩性修正项 $C = - C_5 \frac{\rho \tilde{\nu}^2 S^2}{\gamma R T}$ 的求导:
 
 $$
 \begin{aligned}
@@ -217,7 +212,7 @@ v H & \rho u v & \rho(H + v^2) & \rho v c_p & 0 \\
 \end{pmatrix}
 $$
 
-其中 $p = \rho R T$，$H = c_p T + \frac{1}{2} (u^2 + v^2)$.由于这两个矩阵定义在绝对空间坐标上,因此在计算时需要转移到随体坐标:
+其中 $p = \rho R T$, $H = c_p T + \frac{1}{2} (u^2 + v^2)$ .由于这两个矩阵定义在绝对空间坐标上,因此在计算时需要转移到随体坐标:
 
 $$\frac{\partial F q'}{\partial x}+\frac{\partial G q'}{\partial y} = J \left(\frac{\partial \tilde{F} \tilde{q'}}{\partial s}+\frac{\partial \tilde{G} \tilde{q}'}{\partial n} \right)$$
 
