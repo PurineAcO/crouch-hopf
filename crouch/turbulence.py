@@ -221,7 +221,7 @@ def cell_source(cell:cc.cell_class):
     """邢程单元上的源项矩阵,返回一个列表,顺序为中北南东西\n
     *这一段十分繁复,作者于2026年8月5日推了一整天,最终发现了原文的3处错误.*"""
 
-    influent = [None,None,None,None,None]
+    influent = [None,None,None,None,None]  # 顺序:c,n,s,e,w
 
     # 用到的几个导数项
     dfv2 = (3*cell.chi*cell.fv1*(1-cell.fv1) - 1)/((1+cell.chi*cell.fv1)**2)
@@ -251,7 +251,7 @@ def cell_source(cell:cc.cell_class):
     O4 = O3 * (cell.ugrad[1] + cell.vgrad[0])
     dic = grad.green_gauss_cell_vari(cell)
 
-    # 中心网格c
+    # 所有网格的源项区
     directions = ["c","n","s","e","w"]
     for dire in directions:
         U = O1 * dic[dire][1] + O4 * dic[dire][1] + O3 * 2 * cell.ugrad[0]*dic[dire][0]
