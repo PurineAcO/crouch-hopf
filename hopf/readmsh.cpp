@@ -26,32 +26,24 @@ int main(int argc, char* argv[]) {
     fseek(fp, 0, SEEK_SET);
     std::vector<uint8_t> buf((size_t)fsize);
     if (fread(buf.data(), 1, (size_t)fsize, fp) != (size_t)fsize) {
-        std::cerr << "failed to read file" << std::endl;
-        fclose(fp);return 1;    // 如果没有读取到正确数量的char就宣告失败.
-    }
+        std::cerr << "failed to read file" << std::endl;fclose(fp);return 1;}
     fclose(fp);
 
     int nd = 3;    // 表示网格文件的维度.默认是3.如果在"(2 "后出现的是2,则说明是2d网格.此时更换这个值
     parse_decl_dec(buf.data(), buf.size(), "(2 ", nd);
     int num_nodes = 0;
     parse_decl_count(buf.data(), buf.size(), "(10 (0 1 ", num_nodes); // TODO:这一段也不一定是"(10 0 1 "
-    if (num_nodes <= 0) {
-        std::cerr << "cannot parse node declaration (not a Fluent msh file?)" << std::endl;return 1;
-    }
+    if (num_nodes <= 0) {std::cerr << "cannot parse node declaration (not a Fluent msh file?)" << std::endl;return 1;}
     std::cout << "total nodes: " << num_nodes << std::endl;
 
     // 节点
     size_t n_paren = 0;
     if (!locate_paren(buf.data(), buf.size(), "(3010", n_paren)) {
-        std::cerr << "cannot locate node coordinate block" << std::endl;
-        return 1;
-    }
+        std::cerr << "cannot locate node coordinate block" << std::endl;return 1;}
     std::vector<double> xs, ys, zs;
     size_t n_end = 0;
     if (!read_node_coords(buf, n_paren, num_nodes, nd, xs, ys, zs, n_end)) {
-        std::cerr << "cannot read node coordinates" << std::endl;
-        return 1;
-    }
+        std::cerr << "cannot read node coordinates" << std::endl;return 1;}
 
     std::vector<FaceZone> fzones;size_t search = 0;
     while (true) {
@@ -69,12 +61,10 @@ int main(int argc, char* argv[]) {
 
     long num_faces = fzones.back().last;
     std::cout << "total faces: " << num_faces << " (" << fzones.size() << " zones)" << std::endl;
-    
+
     for (size_t k = 0; k < fzones.size(); ++k) {
-        std::cout << "  face zone #" << k + 1 << ": faces " << fzones[k].first
-                  << "~" << fzones[k].last
-                  << " (" << (fzones[k].last - fzones[k].first + 1) << ")" << std::endl;
-    }
+        std::cout << "  face zone #" << k + 1 << ": faces " << fzones[k].first<< "~" << fzones[k].last
+                  << " (" << (fzones[k].last - fzones[k].first + 1) << ")" << std::endl;}
 
     std::vector<std::vector<Face>> faces(fzones.size());
     for (size_t k = 0; k < fzones.size(); ++k) {
@@ -91,13 +81,9 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // 翻译
     if (argc > 2) {
         FILE* out = fopen(argv[2], "w");
-        if (!out) {
-            std::cerr << "cannot create output file: " << argv[2] << std::endl;
-            return 1;
-        }
+        if (!out) {std::cerr << "cannot create output file: " << argv[2] << std::endl;return 1;}
 
         // 1) 复制头部文本
         fwrite(buf.data(), 1, n_paren, out);
@@ -118,10 +104,8 @@ int main(int argc, char* argv[]) {
         // 4) 各面块
         for (size_t k = 0; k < fzones.size(); ++k) {
             fprintf(out, "(\n");
-            for (const Face& f : faces[k])
-                fprintf(out, "  %d %d %d %d\n", f.n0, f.n1, f.c0, f.c1);
+            for (const Face& f : faces[k]){fprintf(out, "  %d %d %d %d\n", f.n0, f.n1, f.c0, f.c1);}
             fprintf(out, ")\n");
-
             size_t f_end = fzones[k].paren + 1 + (size_t)(fzones[k].last - fzones[k].first + 1) * 16;
             size_t next = (k + 1 < fzones.size()) ? fzones[k + 1].paren : buf.size();
             fwrite(buf.data() + f_end, 1, next - f_end, out);
