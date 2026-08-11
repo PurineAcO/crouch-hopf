@@ -140,6 +140,6 @@ def form_edge(edgedata:str,h = cc.HALO):
 
 def read_rans(ranspath:str,edgepath:str):
     """读取`ransdata.txt`和`edge.txt`"""
-    S_MAX, N_MAX = get_scale(ranspath)
-    read_cells(ranspath,S_MAX,N_MAX,cc.HALO)
+    cc.S_MAX, cc.N_MAX = get_scale(ranspath)
+    read_cells(ranspath,cc.S_MAX,cc.N_MAX,cc.HALO)
     form_edge(edgepath,cc.HALO)

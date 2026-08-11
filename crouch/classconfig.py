@@ -37,6 +37,8 @@ Pr = _CONFIG["physics"]["Pr"]               # 层流Prandtl数
 Prt = _CONFIG["physics"]["Prt"]             # 湍流Prandtl数
 
 # ————————————————————solver params——————————————————
+S_MAX = 0                                   # 每层单元个数
+N_MAX = 0                                   # 单元层数
 alpha_H = _CONFIG["solver"]["alpha_H"]      # 混合格式系数
 HALO = _CONFIG["solver"]["HALO"]            # 虚单元层数
 
@@ -103,6 +105,7 @@ class cell_class:
 
     def form_influence(self,index,A):
         """对本单元的Nq离散化后是13个矩阵的线性组合,有13个网格对本网格造成了影响,他们的空间分布是\n
+        建议使用`cc.dic[]`字典进行访问\n
         [ \\ ][ \\ ][ **0** ][ \\ ][ \\ ]\n
         [ \\ ][ **1** ][ **2** ][ **3** ][ \\ ]\n
         [ **4** ][ **5** ][ **6** ][ **7** ][ **8** ]\n
