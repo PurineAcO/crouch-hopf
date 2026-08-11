@@ -230,7 +230,8 @@ CellList : list[list[cell_class]] = []
 FaceList_WE : list[face_class] = []
 FaceList_NS : list[face_class] = []
 
-BigMatrix = []
+BigMatrix = None
+TMatrix = None
 
 def HALO_cellinit(S_MAX:int,N_MAX:int):
     """halo 化下标空间: s=-HALO⋯S_MAX+HALO, n=-HALO⋯N_MAX+HALO, 角落保持 None"""
