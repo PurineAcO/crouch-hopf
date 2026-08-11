@@ -1,12 +1,6 @@
 import classconfig as cc
 import numpy as np
 
-def green_gauss_constant(face:cc.face_class):
-    """基本流的*Green-Gauss*重构方法,对面上的梯度进行差分."""
-    green_gauss_from_JST(face.me,face.me.north,face.me.south,face.me.east,face.me.west)
-    green_gauss_from_JST(face.nei,face.nei.north,face.nei.south,face.nei.east,face.nei.west)
-    face.grad_2nd_mid()
-
 def green_gauss_face_vari(face:cc.face_class):
     """计算某个`face`的梯度影响矩阵,根据green-gauss方法,会和8个网格挂钩\n
        为了看起来舒服,会返回一个字典."""
@@ -28,7 +22,7 @@ def green_gauss_face_vari(face:cc.face_class):
         grad_dic['ww'] = -(west.west.jacobian[0])/west.vol/4
         return grad_dic
 
-    elif face.direction != "NS" : 
+    elif face.direction == "NS" : 
         grad_dic = {}
         north = face.north; south = face.south
         grad_dic['n'] = ((north.north.jacobian[0]-north.south.jacobian[0]+
@@ -61,15 +55,15 @@ def green_gauss_cell_vari(cell:cc.cell_class):
     return grad_dic
     
 
-def green_gauss_from_JST(cell:cc.cell_class,face1:cc.face_class,face2:cc.face_class,
-                    face3:cc.face_class,face4:cc.face_class):
-        """基于Green-Guass的梯度构建""" 
-        u_vec = np.array([face1.u,face2.u,face3.u,face4.u])
-        v_vec = np.array([face1.v,face2.v,face3.v,face4.v])
-        miubl_vec = np.array([face1.miubl,face2.miubl,face3.miubl,face4.miubl])
-        T_vec = np.array([face1.T,face2.T,face3.T,face4.T])
-        nx_vec = np.array([face1.nx,-face2.nx,face3.nx,-face4.nx])
-        ny_vec = np.array([face1.ny,-face2.ny,face3.ny,-face4.ny])
+def green_gauss_from_JST(cell:cc.cell_class,facenorth:cc.face_class,facesouth:cc.face_class,
+                    faceeast:cc.face_class,facewest:cc.face_class):
+        """基于Green-Guass的梯度构建,一般按照北、南、东、西来写""" 
+        u_vec = np.array([facenorth.u,facesouth.u,faceeast.u,facewest.u])
+        v_vec = np.array([facenorth.v,facesouth.v,faceeast.v,facewest.v])
+        miubl_vec = np.array([facenorth.miubl,facesouth.miubl,faceeast.miubl,facewest.miubl])
+        T_vec = np.array([facenorth.T,facesouth.T,faceeast.T,facewest.T])
+        nx_vec = np.array([facenorth.nx,-facesouth.nx,faceeast.nx,-facewest.nx])
+        ny_vec = np.array([facenorth.ny,-facesouth.ny,faceeast.ny,-facewest.ny])
         cell.ugrad = np.array([np.dot(u_vec,nx_vec),np.dot(u_vec,ny_vec)])/cell.vol
         cell.vgrad = np.array([np.dot(v_vec,nx_vec),np.dot(v_vec,ny_vec)])/cell.vol
         cell.miublgrad = np.array([np.dot(miubl_vec,nx_vec),np.dot(miubl_vec,ny_vec)])/cell.vol

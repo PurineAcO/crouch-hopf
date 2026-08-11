@@ -137,6 +137,14 @@ def form_edge(edgedata:str,h = cc.HALO):
         gN1 = cc.CellList[s + h][n_max + 1 + h]
         gN2 = cc.CellList[s + h][n_max + 2 + h]
         gN1.north = cc.face_class("NS", (0.0, 0.0), [[0.0, 0.0], [0.0, 0.0]], gN2, gN1)
+    # 虚层 east/west 槽位: 补零 jacobian 伪面(供链式访问与 Green-Gauss 重构, 贡献为0)
+    for s in range(1, s_max + 1):
+        g0 = cc.CellList[s + h][h]
+        gN1 = cc.CellList[s + h][n_max + 1 + h]
+        g0.east = cc.face_class("WE", (0.0, 0.0), [[0.0, 0.0], [0.0, 0.0]], g0, g0)
+        g0.west = cc.face_class("WE", (0.0, 0.0), [[0.0, 0.0], [0.0, 0.0]], g0, g0)
+        gN1.east = cc.face_class("WE", (0.0, 0.0), [[0.0, 0.0], [0.0, 0.0]], gN1, gN1)
+        gN1.west = cc.face_class("WE", (0.0, 0.0), [[0.0, 0.0], [0.0, 0.0]], gN1, gN1)
 
 def read_rans(ranspath:str,edgepath:str):
     """读取`ransdata.txt`和`edge.txt`"""

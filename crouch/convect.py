@@ -2,7 +2,6 @@ import classconfig as cc
 import numpy as np
 
 # 本篇对s,n随体向量的要求是,必须指向北方和东方作为正.
-# BUG:Jacobi 的位置错误了!!!
 
 def convect_sum_jacobi(cell_me:cc.cell_class,cell_nei:cc.cell_class):
     """将`cell_nei`根据`cell_me`进行jacobi"""
@@ -98,5 +97,5 @@ def convect_hybrid(cell:cc.cell_class):
     mid = face_convect_mat_4th_mid(cell)
     viscous = viscous_convect_1st_upwind(cell)
     for j in range(13):
-        cell.form_influence(j, cc.alpha_H*upwind[j]+(1-cc.alpha_H)*mid[j])
-        cell.form_influence(j,np.array([np.zeros((4,5)),viscous[j]]))
+        cell.form_influence(j, (cc.alpha_H*upwind[j]+(1-cc.alpha_H)*mid[j])/cell.vol )
+        cell.form_influence(j, (np.vstack([np.zeros((4,5)), viscous[j]]))/cell.vol )

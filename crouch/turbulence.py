@@ -3,13 +3,9 @@ import numpy as np
 import grad
 import math
 
-# TODO:在粘性构建以前,要确保每个单元有有效的粘性参数,即执行SA_calc_constantsa,
-# TODO:随后对面上进行cell.north.diffusion_2nd_mid_SA(),
-# TODO:在以上两条前,要进行常数梯度grad.green_gauss_constant的构建.
-
 def SA_calc_constants(cell:cc.cell_class):
     """计算Spalart-Allmaras湍流模型引起的有效粘度系数*μeff*,\n
-    执行这个函数以前请确保`grad.green_gauss_constant`已执行"""
+    执行这个函数以前请确保`grad.green_gauss_from_JST`已执行"""
 
     # 计算有效粘度μeff的公式
     cell.mu= cc.mu0 * (cell.T/cc.T0)**1.5* (cc.T0+cc.Ts)/(cell.T+cc.Ts) # 计算分子粘度μ,基于Suthland公式
@@ -29,6 +25,19 @@ def SA_calc_constants(cell:cc.cell_class):
     cell.g = cell.r + cc.Cw2 * (cell.r**6 -cell.r)
     cell.fw = cell.g * ((1+cc.Cw3**6)/(cell.g**6+cc.Cw3**6))**(1/6)
     cell.S = math.sqrt(2*cell.ugrad[0]**2 + 2*cell.vgrad[1]**2 + (cell.ugrad[1]+cell.vgrad[0])**2)
+
+
+def diffusion_2nd_mid_SA(face:cc.face_class):
+    """对面上的湍流字典进行二阶中心插值并构建切应力"""
+    face.mu_eff = (face.me.mu_eff+face.nei.mu_eff)/2
+    face.lambda_eff = (face.me.lambda_eff+face.nei.lambda_eff)/2
+    face.chi = (face.me.chi+face.nei.chi)/2
+    face.fv1 = (face.me.fv1+face.nei.fv1)/2
+    face.mu = (face.me.mu+face.nei.mu)/2
+    face.tauxx = face.mu_eff * (face.ugrad[0]-1/3*(face.ugrad[0]+face.vgrad[1]))
+    face.tauxy = face.mu_eff * (face.ugrad[1]+face.vgrad[0])
+    face.tauyy = face.mu_eff * (face.vgrad[1]-1/3*(face.ugrad[0]+face.vgrad[1]))
+
 
 def cell_diffusion(cell:cc.cell_class):
     """计算单元扩散项矩阵,在进行这一函数之前,**必须**对**所有单元和面**执行`SA_calc_constants`"""
@@ -59,6 +68,9 @@ def cell_diffusion(cell:cc.cell_class):
     results = face_diffusion(cell.north)
     for dire, val in zip(directions, results):
         influence[cc.dic[dire]] += val
+
+    for i in range(13):
+        cell.form_influence(i, -influence[i]/cell.vol)
 
 def face_diffusion(face:cc.face_class):
     """计算面上的湍流扩散项"""
@@ -218,7 +230,7 @@ def face_diffusion(face:cc.face_class):
     return D6,D7,D2,D3,D10,D11,D8,D5
 
 def cell_source(cell:cc.cell_class):
-    """邢程单元上的源项矩阵,返回一个列表,顺序为中北南东西\n
+    """邢程单元上的源项矩阵,直接构建在了`cell.influence`\n
     *这一段十分繁复,作者于2026年8月5日推了一整天,最终发现了原文的3处错误.*"""
 
     influent = [None,None,None,None,None]  # 顺序:c,n,s,e,w
@@ -258,8 +270,7 @@ def cell_source(cell:cc.cell_class):
         V = -O1 * dic[dire][0] + O4 * dic[dire][0] + O3 * 2 * cell.vgrad[1]*dic[dire][1]
         M = O2 * (cell.miublgrad[0] * dic[dire][0] + cell.miublgrad[1] * dic[dire][1])
         if dire == "c":
-            influent[0] = np.array([R,U,V,T,M+M0])
+            cell.form_influence(cc.dic["c"], -np.array([R,U,V,T,M+M0]))
         else:
-            influent[directions.index(dire)] = np.array([0,U,V,0,M])
-
-    return influent
+            cell.form_influence(cc.dic[dire], -np.array([0,U,V,0,M]))
+    

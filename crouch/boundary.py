@@ -14,9 +14,9 @@ def wing_boundary(cell:cc.cell_class):
     C0 = ((dy1-dy2)*cell.south.nx + (dx2-dx1)*cell.south.ny)/det
     C1 = (dy2*cell.south.nx - dx2*cell.south.ny)/det
     C2 = -1 * (dy1*cell.south.nx - dx1*cell.south.ny)/det
-    A = np.array([C0,0,0,0,0],[0,1,0,0,0],[0,0,1,0,0],[0,0,0,C0,0],[0,0,0,0,1])
-    B = np.array([C1,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,C1,0],[0,0,0,0,0])
-    D = np.array([C2,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,C2,0],[0,0,0,0,0])
+    A = np.array([[C0,0,0,0,0],[0,1,0,0,0],[0,0,1,0,0],[0,0,0,C0,0],[0,0,0,0,1]])
+    B = np.array([[C1,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,C1,0],[0,0,0,0,0]])
+    D = np.array([[C2,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,C2,0],[0,0,0,0,0]])
     cell.form_influence(cc.dic["c"],A)
     cell.form_influence(cc.dic["n"],B)
     cell.form_influence(cc.dic["nn"],D)
@@ -37,13 +37,13 @@ def far_boundary(cell:cc.cell_class):
     kx = cell.north.nx/(math.sqrt(cell.north.nx**2+cell.north.ny**2))
     ky = cell.north.ny/(math.sqrt(cell.north.nx**2+cell.north.ny**2))
     if cell.north.vn <= 0: # 入流边界
-        A = np.array([0,kx,ky,CT,0],[0,C0*kx,C0*ky,-C0*CT,0],[0,ky,-kx,0,0],[KR,0,0,KT,0],[0,0,0,0,1])
-        B = np.array([0,0,0,0,0],[0,C1*kx,C1*ky,-C1*CT,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0])
-        D = np.array([0,0,0,0,0],[0,C2*kx,C2*ky,-C2*CT,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0])
+        A = np.array([[0,kx,ky,CT,0],[0,C0*kx,C0*ky,-C0*CT,0],[0,ky,-kx,0,0],[KR,0,0,KT,0],[0,0,0,0,1]])
+        B = np.array([[0,0,0,0,0],[0,C1*kx,C1*ky,-C1*CT,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]])
+        D = np.array([[0,0,0,0,0],[0,C2*kx,C2*ky,-C2*CT,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]])
     else: # 出流边界
-        A = np.array([0,C0*kx,C0*ky,C0*CT,0],[0,kx,ky,-CT,0],[0,C0*ky,-C0*kx,0,0],[C0*KR,0,0,C0*KT,0],[0,0,0,0,C0])
-        B = np.array([0,C1*kx,C1*ky,C1*CT,0],[0,0,0,0,0],[0,C1*ky,-C1*kx,0,0],[C1*KR,0,0,C1*KT,0],[0,0,0,0,C1])
-        D = np.array([0,C2*kx,C2*ky,C2*CT,0],[0,0,0,0,0],[0,C2*ky,-C2*kx,0,0],[C2*KR,0,0,C2*KT,0],[0,0,0,0,C2])
+        A = np.array([[0,C0*kx,C0*ky,C0*CT,0],[0,kx,ky,-CT,0],[0,C0*ky,-C0*kx,0,0],[C0*KR,0,0,C0*KT,0],[0,0,0,0,C0]])
+        B = np.array([[0,C1*kx,C1*ky,C1*CT,0],[0,0,0,0,0],[0,C1*ky,-C1*kx,0,0],[C1*KR,0,0,C1*KT,0],[0,0,0,0,C1]])
+        D = np.array([[0,C2*kx,C2*ky,C2*CT,0],[0,0,0,0,0],[0,C2*ky,-C2*kx,0,0],[C2*KR,0,0,C2*KT,0],[0,0,0,0,C2]])
     cell.form_influence(cc.dic["c"],A)
     cell.form_influence(cc.dic["s"],B)
     cell.form_influence(cc.dic["ss"],D)

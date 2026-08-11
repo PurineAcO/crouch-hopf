@@ -127,9 +127,6 @@ class cell_class:
                         [self.v*self.H,self.rho*self.u*self.v,self.rho*(self.H+self.v**2),self.rho*self.v*cp,0],
                         [0,0,0,0,0]])
 
-    def source_mat(self):
-        ...
-
     def cell_jacobi(self):
         m_w, m_e = self.west.mid, self.east.mid
         m_s, m_n = self.south.mid, self.north.mid
@@ -216,17 +213,6 @@ class face_class():
         self.Tgrad = (self.me.Tgrad+self.nei.Tgrad)/2
         self.miublgrad = (self.me.miublgrad+self.nei.miublgrad)/2
 
-    def diffusion_2nd_mid_SA(self):
-        """对面上的湍流字典进行二阶中心插值并构建切应力"""
-        self.mu_eff = (self.me.mu_eff+self.nei.mu_eff)/2
-        self.lambda_eff = (self.me.lambda_eff+self.nei.lambda_eff)/2
-        self.chi = (self.me.chi+self.nei.chi)/2
-        self.fv1 = (self.me.fv1+self.nei.fv1)/2
-        self.mu = (self.me.mu+self.nei.mu)/2
-        self.tauxx = self.mu_eff * (self.ugrad[0]-1/3*(self.ugrad[0]+self.vgrad[1]))
-        self.tauxy = self.mu_eff * (self.ugrad[1]+self.vgrad[0])
-        self.tauyy = self.mu_eff * (self.vgrad[1]-1/3*(self.ugrad[0]+self.vgrad[1]))
-
     @property
     def vn(self):
         return self.jacobi(self.u, self.v)[0]
@@ -250,3 +236,6 @@ def HALO_cellinit(S_MAX:int,N_MAX:int):
     """halo 化下标空间: s=-HALO⋯S_MAX+HALO, n=-HALO⋯N_MAX+HALO, 角落保持 None"""
     CellList.clear()
     CellList.extend([[None] * (N_MAX + 2 * HALO + 1) for _ in range(S_MAX + 2 * HALO + 1)])
+
+def goto_HALOcell(index:tuple) -> cell_class :
+    return CellList[index[0]+HALO][index[1]+HALO]
