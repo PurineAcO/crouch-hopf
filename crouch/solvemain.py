@@ -35,8 +35,9 @@ for face in cc.FaceList_WE:
     face.grad_2nd_mid()
 
 # —————————— 构建对流项 ——————————————
+# 构建时跳过物面和远场
 
-for n in range(1,cc.N_MAX+1):
+for n in range(2,cc.N_MAX):
     for s in range(1,cc.S_MAX+1):
         cell = cc.goto_HALOcell((s,n))
         convect.convect_hybrid(cell)
@@ -44,17 +45,17 @@ for n in range(1,cc.N_MAX+1):
 # —————————— 构建扩散项 ——————————————
 # 在进行扩散项构建前,应该先确保各个cell和face存在梯度,再构建粘性的湍流模型参数.
 # 请注意,也应该构建虚单元的湍流模型参数和梯度.
+# 物理单元 SA 参数和虚单元 SA 参数将分别被构建,构建时跳过物面和远场
 
 for n in range(1,cc.N_MAX+1):
     for s in range(1,cc.S_MAX+1):
         cell = cc.goto_HALOcell((s,n))
         turbulence.SA_calc_constants(cell)
 
-# 虚单元也需要 SA 参数(壁面/远场虚层参与面的二阶插值), 否则 None+float
 for s in range(1,cc.S_MAX+1):
-    for n in (0,-1):                        # 壁面侧虚层
+    for n in (0,-1):                       
         turbulence.SA_calc_constants(cc.goto_HALOcell((s,n)))
-    for n in (cc.N_MAX+1,cc.N_MAX+2):       # 远场侧虚层
+    for n in (cc.N_MAX+1,cc.N_MAX+2):      
         turbulence.SA_calc_constants(cc.goto_HALOcell((s,n)))
 
 for face in cc.FaceList_NS:
@@ -63,7 +64,7 @@ for face in cc.FaceList_NS:
 for face in cc.FaceList_WE:
     turbulence.diffusion_2nd_mid_SA(face)
 
-for n in range(1,cc.N_MAX+1):
+for n in range(2,cc.N_MAX):
     for s in range(1,cc.S_MAX+1):
         cell = cc.goto_HALOcell((s,n))
         turbulence.cell_diffusion(cell)
