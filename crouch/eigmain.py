@@ -2,6 +2,7 @@ import time
 import csv
 import numpy as np
 import scipy.sparse.linalg as spla
+import console
 
 
 def solve_eig(S, T, k: int = 20, sigma: complex = 0.0 + 0.0j,
@@ -19,25 +20,30 @@ def solve_eig(S, T, k: int = 20, sigma: complex = 0.0 + 0.0j,
     v0 = rng.standard_normal(n)
 
     t0 = time.time()
-    print(f"[eig] eigs: sigma={sigma}, k={k}, ncv={ncv}, v0_seed={v0_seed} ...")
+    console.info(f"shift-invert ARPACK: sigma={sigma}, k={k}, ncv={ncv}, v0_seed={v0_seed} ...")
     vals, vecs = spla.eigs(S, k=k, M=T, sigma=sigma, which="LM",
                            ncv=ncv, v0=v0, maxiter=maxiter, tol=tol)
     order = np.argsort(-vals.real)
 
-    # per-mode normalized residual (post-processing only)
+    # 每个模态的归一化残差 (纯后处理)
     res = np.zeros(k)
     for i in range(k):
         lhs = S @ vecs[:, i]
         rhs = vals[i] * (T @ vecs[:, i])
         res[i] = np.linalg.norm(lhs - rhs) / (np.linalg.norm(lhs) + np.linalg.norm(rhs) + 1e-300)
 
-    print(f"[eig] done in {time.time()-t0:.1f}s, top {k} growth rates Re(lambda):")
-    print(f"{'Re(lambda)':>14s} {'Im(lambda)':>14s} {'growth':>10s} {'freq':>10s} {'resid':>10s}")
+    console.ok(f"Eigen solve done in {time.time()-t0:.1f}s, top {k} growth rates Re(lambda):")
+    console.info(f"{'Re(lambda)':>14s} {'Im(lambda)':>14s} {'growth':>10s} {'freq':>10s} {'resid':>10s}")
     rows = []
     for idx, i in enumerate(order, 1):
         v = vals[i]
-        flag = "" if res[i] < 100 * tol else "  <-- not converged?"
-        print(f"{v.real:14.6e} {v.imag:14.6e} {v.real:10.4e} {v.imag/2/np.pi:10.4e} {res[i]:10.2e}{flag}")
+        line = f"{v.real:14.6e} {v.imag:14.6e} {v.real:10.4e} {v.imag/2/np.pi:10.4e} {res[i]:10.2e}"
+        if res[i] >= 100 * tol:          # 未收敛: 橙色警告
+            console.warn_raw(line + "   <-- not converged?")
+        elif v.real > 0:                 # 不稳定模态: 绿色
+            console.ok_raw(line)
+        else:                            # 稳定模态: 默认黑色
+            print(line)
         rows.append((idx, v.real, v.imag, v.real, v.imag/2/np.pi, res[i]))
     if save:
         np.save("eigvals.npy", vals)
@@ -46,5 +52,5 @@ def solve_eig(S, T, k: int = 20, sigma: complex = 0.0 + 0.0j,
             w = csv.writer(f)
             w.writerow(["mode", "Re(lambda)", "Im(lambda)", "growth", "freq", "resid"])
             w.writerows(rows)
-        print("[eig] saved eigvals.npy / eigvecs.npy / result.csv")
+        console.ok("Saved eigvals.npy / eigvecs.npy / result.csv")
     return vals, vecs
