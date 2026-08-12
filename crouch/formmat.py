@@ -42,12 +42,13 @@ def formmat(cell:cc.cell_class):
     """开始写稀疏矩阵"""
     s, n = cell.index
     g_self = ((n - 1) * cc.S_MAX + (s - 1)) * 5     # 本块行起始行
-    W = _primitive_map(cell)                       # 本单元基流变换阵
+    W = None if (n == 1 or n == cc.N_MAX) else _primitive_map(cell)
     for k in range(13):
         M = cell.influence[k]
         if not M.any():
             continue
-        M = W @ M
+        if W is not None:
+            M = W @ M
         ds, dn = _OFFSET[k]
         ns = ((s + ds - 1) % cc.S_MAX) + 1        # s 周期回绕
         nn_ = n + dn
