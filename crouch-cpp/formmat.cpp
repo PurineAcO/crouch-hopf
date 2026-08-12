@@ -38,14 +38,34 @@ void ghost_target(int ns, int nn_, int& ps, int& pn, const Mat5*& map) {
     }
 }
 
+// 时间变换逆矩阵
+Mat5 primitive_map(const cell_class* cell) {
+    double rho = cell->rho, u = cell->u, v = cell->v;
+    double T = cell->T, nu = cell->miubl;
+    double Cv = cp - R;             // 定容比热
+    double q2 = u * u + v * v;
+    Mat5 W;
+    W << 1.0, 0.0, 0.0, 0.0, 0.0,
+         -u / rho, 1.0 / rho, 0.0, 0.0, 0.0,
+         -v / rho, 0.0, 1.0 / rho, 0.0, 0.0,
+         -T / rho + q2 / (2.0 * Cv * rho), -u / (Cv * rho), -v / (Cv * rho), 1.0 / (Cv * rho), 0.0,
+         -nu / rho, 0.0, 0.0, 0.0, 1.0 / rho;
+    return W;
+}
+
 }  // namespace
 
 void formmat(cell_class* cell) {
     int s = cell->index.first, n = cell->index.second;
     int g_self = ((n - 1) * S_MAX + (s - 1)) * 5;   // 本块行起始行
+    // 边界层 (n==1 壁面, n==N_MAX 远场) 不左乘 W (同 Python 77abb24)
+    bool apply_W = (n != 1 && n != N_MAX);
+    Mat5 W;
+    if (apply_W) W = primitive_map(cell);
     for (int k = 0; k < 13; k++) {
         Mat5 M = cell->influence[k];
         if (!M.any()) continue;
+        if (apply_W) M = W * M;   // 左乘 W, 在虚邻居折叠之前
         auto [ds, dn] = OFFSET[k];
         int ns = ((s + ds - 1) % S_MAX + S_MAX) % S_MAX + 1;  // s 周期回绕
         int nn_ = n + dn;
