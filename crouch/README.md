@@ -41,35 +41,35 @@
 
 3. 无粘对流项矩阵`F`,`G`及其形成函数`self.cell_convect_mat`.在形成网格时,即调用了后者.其中, $F,G$ 形式如下(需要注意的是,对流项矩阵定义在直角坐标系下):
 
-    $$ 
-    F = \begin{pmatrix}
-    u & \rho & 0 & 0 & 0 \\
-    u^2 + RT & 2\rho u & 0 & \rho R & 0 \\
-    u v & \rho v & \rho u & 0 & 0 \\
-    u H & \rho(H + u^2) & \rho u v & \rho u c_p & 0 \\
-    0 & 0 & 0 & 0 & 0
-    \end{pmatrix}
-    $$
+ $$ 
+ F = \begin{pmatrix}
+ u & \rho & 0 & 0 & 0 \\
+ u^2 + RT & 2\rho u & 0 & \rho R & 0 \\
+ u v & \rho v & \rho u & 0 & 0 \\
+ u H & \rho(H + u^2) & \rho u v & \rho u c_p & 0 \\
+ 0 & 0 & 0 & 0 & 0
+ \end{pmatrix}
+ $$
 
-    $$
-    G = \begin{pmatrix}
-    v & 0 & \rho & 0 & 0 \\
-    u v & \rho v & \rho u & 0 & 0 \\
-    v^2 + RT & 0 & 2\rho v & \rho R & 0 \\
-    v H & \rho u v & \rho(H + v^2) & \rho v c_p & 0 \\
-    0 & 0 & 0 & 0 & 0
-    \end{pmatrix}
-    $$ 
+ $$
+ G = \begin{pmatrix}
+ v & 0 & \rho & 0 & 0 \\
+ u v & \rho v & \rho u & 0 & 0 \\
+ v^2 + RT & 0 & 2\rho v & \rho R & 0 \\
+ v H & \rho u v & \rho(H + v^2) & \rho v c_p & 0 \\
+ 0 & 0 & 0 & 0 & 0
+ \end{pmatrix}
+ $$ 
 
-    粘性对流项矩阵由`self.viscous_convect_vec`形成,该方法**返回2个1x5向量** $\boldsymbol{F_V}$ 和 $\boldsymbol{G_V}$
+粘性对流项矩阵由`self.viscous_convect_vec`形成,该方法**返回2个1x5向量** $\boldsymbol{F_V}$ 和 $\boldsymbol{G_V}$
 
-    $$
-    \boldsymbol{F_V} = \left( u \tilde{\nu},\rho \tilde{\nu},0,0,\rho u \right)^\top
-    $$
+ $$
+ \boldsymbol{F_V} = \left( u \tilde{\nu},\rho \tilde{\nu},0,0,\rho u \right)^\top
+ $$
 
-    $$
-    \boldsymbol{G_V} = \left( v \tilde{\nu},0,\rho \tilde{\nu},0,\rho v \right)^\top
-    $$
+ $$
+ \boldsymbol{G_V} = \left( v \tilde{\nu},0,\rho \tilde{\nu},0,\rho v \right)^\top
+ $$
 
 
 4. 影响矩阵`influence`:每个中心网格(即6号)会与周围13个网格发生关系,其位置如下图所示.也就是说在最后的影响矩阵 $\boldsymbol{T}$ 中,每一行只有13个元素.矩阵重构期的任务是先对中心网格求出13个影响矩阵和 $\hat{q}$ 向量的线性组合,随后组装到对应位置上去. 为了调用方便,`classconfig.dic`提供了使用`n`,`nn`,`ne`等调用对应网格影响矩阵位置的方法,推荐使用字典.
@@ -120,9 +120,9 @@
 
     - 面上的jacobi矩阵 $\boldsymbol{J}$ 被定义在`jacobian`,其中,Jacobi矩阵所有元素均遵循向东、北为正的原则.该矩阵的形状为
 
-    $$
-    \boldsymbol{J} = \begin{pmatrix} X_n & Y_n \\ X_s & Y_s \end{pmatrix}
-    $$
+ $$
+ \boldsymbol{J} = \begin{pmatrix} X_n & Y_n \\ X_s & Y_s \end{pmatrix}
+ $$
 
 2. 物理量
 
