@@ -38,7 +38,7 @@ def test_recorded_base_model_must_match(model):
 @pytest.mark.parametrize('values', [[1e-20], [np.nan], [-1]])
 def test_laminar_rejects_nonzero_or_invalid_sa_input(values):
   with pytest.raises(ValueError):
-    validate_base_model(FlowModel.LAMINAR, {}, np.array(values))
+    validate_base_model(FlowModel.LAMINAR, {'model': 'laminar'}, np.array(values))
 
 
 def test_sa_reflection_sector():
@@ -111,3 +111,14 @@ def test_eigen_cli_uses_assembled_model(tmp_path, model):
   report = json.loads((tmp_path / 'wake_solve.json').read_text())
   assert report['nvar'] == nvar and report['model'] == model.value
   assert report['max_residual'] < 1e-12
+
+
+def test_missing_model_metadata_is_rejected():
+  with pytest.raises(ValueError, match='must record model'):
+    validate_base_model(FlowModel.LAMINAR, {}, np.zeros(3))
+
+
+def test_operator_requires_explicit_model(monkeypatch):
+  monkeypatch.setattr(cc, 'flow_model', None)
+  with pytest.raises(ValueError, match='Select a flow model'):
+    lin.viscosity(np.array([1, 40, 0, 300, 0]))

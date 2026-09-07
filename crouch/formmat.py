@@ -90,6 +90,4 @@ def build():
   for n in range(2, cc.N_MAX):
     d[(n - 1) * cc.S_MAX * 5 : n * cc.S_MAX * 5] = 1.0
   T = sp.diags(d)
-  cc.BigMatrix = S
-  cc.TMatrix = T
   return S, T

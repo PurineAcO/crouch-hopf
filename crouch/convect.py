@@ -17,7 +17,7 @@ def _metric(cell, direction):
 
 def _flux_jacobian(cell, normal):
   jac = normal[0] * cell.F + normal[1] * cell.G
-  if cc.flow_model.nvar == 5:
+  if cc.active_model().nvar == 5:
     fx, fy = cell.sa_convect_vec()
     jac[4] = normal[0] * fx + normal[1] * fy
   return jac

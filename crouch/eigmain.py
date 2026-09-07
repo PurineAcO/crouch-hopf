@@ -74,7 +74,7 @@ def main():
   assembly = json.loads((root / 'assembly.json').read_text())
   model = FlowModel(assembly['model'])
   nvar = model.nvar
-  if parameters.get('model', model.value) != model.value:
+  if parameters['model'] != model.value:
     raise ValueError('Base-flow and assembled operator models disagree')
   ns, nn = parameters['nt'], parameters['nr']
   unit_time = parameters['D_m'] / parameters['U_m_s']

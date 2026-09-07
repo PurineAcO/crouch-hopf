@@ -31,7 +31,7 @@ def viscosity(q, molecular_mu=None):
   mu = molecular_mu
   if mu is None:
     mu = cc.mu0 * (temperature / cc.T0) ** 1.5 * (cc.T0 + cc.Ts) / (temperature + cc.Ts)
-  if cc.flow_model.nvar == 4:
+  if cc.active_model().nvar == 4:
     return mu, 0.0
   rho, nu = q[0], q[4]
   chi = rho * nu / mu
@@ -49,7 +49,7 @@ def viscous_flux(q, g, normal, molecular_mu=None):
   tyy = eff * (4 / 3 * vy - 2 / 3 * ux)
   txy = eff * (uy + vx)
   heat = cc.cp * (mu / cc.Pr + mut / cc.Prt) * g[3]
-  diff = cc.inv_sigma * (mu + rho * nu) * g[4] if cc.flow_model.nvar == 5 else np.zeros(2)
+  diff = cc.inv_sigma * (mu + rho * nu) * g[4] if cc.active_model().nvar == 5 else np.zeros(2)
   fx = np.array([0, txx, txy, u * txx + v * txy + heat[0], diff[0]])
   fy = np.array([0, txy, tyy, u * txy + v * tyy + heat[1], diff[1]])
   return fx * normal[0] + fy * normal[1]

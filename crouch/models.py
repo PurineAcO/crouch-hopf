@@ -15,8 +15,10 @@ class FlowModel(str, Enum):
 def validate_base_model(model, parameters, nu_tilde):
   import numpy as np
 
-  recorded = parameters.get('model')
-  if recorded is not None and FlowModel(recorded) is not model:
+  if 'model' not in parameters:
+    raise ValueError('Base-flow parameters must record model')
+  recorded = parameters['model']
+  if FlowModel(recorded) is not model:
     raise ValueError(f'Base-flow model {recorded} does not match requested {model.value}')
   if not np.isfinite(nu_tilde).all() or np.any(nu_tilde < 0):
     raise ValueError('Base-flow nu-tilde must be finite and nonnegative')

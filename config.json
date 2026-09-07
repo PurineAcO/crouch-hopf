@@ -25,7 +25,6 @@
   },
   "solver": {
     "HALO": 2,
-    "alpha_H": 0.2,
-    "model": "sa"
+    "alpha_H": 0.2
   }
 }

@@ -38,7 +38,14 @@ Pr = _CONFIG['physics']['Pr']  # 层流Prandtl数
 Prt = _CONFIG['physics']['Prt']  # 湍流Prandtl数
 
 # ————————————————————solver params——————————————————
-flow_model = FlowModel(_CONFIG['solver']['model'])
+flow_model: FlowModel | None = None
+
+
+def active_model():
+  if flow_model is None:
+    raise ValueError('Select a flow model before constructing the operator')
+  return flow_model
+
 
 S_MAX = 0  # 每层单元个数
 N_MAX = 0  # 单元层数
@@ -86,20 +93,16 @@ class cell_class:
     self.Tgrad = np.zeros(2)  # T梯度
     self.miublgrad = np.zeros(2)  # ̃ν梯度
 
-    # 单元的全部邻接面, 槽位顺序 [W, E, S, N] (见 FACE_W/E/S/N)
+    # 四个相邻面；周向周期连接由读入器建立。
     self.west: face_class = None
     self.east: face_class = None
     self.south: face_class = None
     self.north: face_class = None
 
-    # 本单元的流动量能够写为13个矩阵的线性组合,他们的位置下
     # Local blocks share rho,u,v,T,nu-tilde ordering in both models.
     self.influence = [np.zeros((5, 5)) for _ in range(13)]
 
     # Cartesian flux Jacobians; assembly applies the temporal RHS sign.
-    self.F = np.zeros((5, 5))  # x对流项(F)
-    self.G = np.zeros((5, 5))  # y对流项(G)
-
     # 初始化定常基流上的对流雅可比。
     self.cell_convect_mat()  # 构建对流项矩阵
 
@@ -154,11 +157,6 @@ class cell_class:
     n_vec = (m_n[0] - m_s[0], m_n[1] - m_s[1])
     self.jacobian = np.array([list(s_vec), list(n_vec)])
 
-  def jacobi(self, A, B):
-    A1 = A * self.jacobian[0][0] + B * self.jacobian[0][1]
-    A2 = A * self.jacobian[1][0] + B * self.jacobian[1][1]
-    return A1, A2
-
   def sa_convect_vec(self):
     """Cartesian flux Jacobians of the conservative rho*nu-tilde equation."""
     return (
@@ -175,19 +173,6 @@ class face_class:
     self.nei = nei  # 一般一个面的低侧为nei网格
     self.mid = mid
     self.jacobian = np.array(jacobi)  # 形式必须是(Xn,Yn;Xs,Ys)
-
-    # 梯度
-    self.rhograd = np.zeros(2)
-    self.ugrad = np.zeros(2)  # u梯度
-    self.vgrad = np.zeros(2)  # v梯度
-    self.Tgrad = np.zeros(2)  # T梯度
-    self.miublgrad = np.zeros(2)  # ̃ν梯度
-
-    # 面上的湍流字典(仅用于扩散项,所以缺少了很多东西)
-    self.mu = None  # 分子粘度μ
-    self.tauxx = None  # 切应力tauxx
-    self.tauxy = None  # 切应力tauxy
-    self.tauyy = None  # 切应力tauyy
 
     # 构建面上的参数
     self.form_physics()  # 形成面上物理量,二阶中心差分
@@ -211,7 +196,6 @@ class face_class:
     self.u = (self.me.u + self.nei.u) / 2
     self.v = (self.me.v + self.nei.v) / 2
     self.T = (self.me.T + self.nei.T) / 2
-    self.H = (self.me.H + self.nei.H) / 2
     self.miubl = (self.me.miubl + self.nei.miubl) / 2
 
   def jacobi(self, A, B):
@@ -219,13 +203,6 @@ class face_class:
     A1 = A * self.jacobian[0][0] + B * self.jacobian[0][1]
     A2 = A * self.jacobian[1][0] + B * self.jacobian[1][1]
     return A1, A2
-
-  def grad_2nd_mid(self):
-    """对面上的梯度进行二阶中心插值"""
-    self.ugrad = (self.me.ugrad + self.nei.ugrad) / 2
-    self.vgrad = (self.me.vgrad + self.nei.vgrad) / 2
-    self.Tgrad = (self.me.Tgrad + self.nei.Tgrad) / 2
-    self.miublgrad = (self.me.miublgrad + self.nei.miublgrad) / 2
 
   @property
   def vn(self):
@@ -243,9 +220,6 @@ class face_class:
 CellList: list[list[cell_class]] = []
 FaceList_WE: list[face_class] = []
 FaceList_NS: list[face_class] = []
-
-BigMatrix = None
-TMatrix = None
 
 
 def HALO_cellinit(S_MAX: int, N_MAX: int):
