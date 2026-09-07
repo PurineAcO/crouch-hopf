@@ -1,101 +1,70 @@
+"""Crouch et al. (2007), equations 3.1.10--19; first-order SA convection."""
+
 import classconfig as cc
 import numpy as np
 
-# 本篇对s,n随体向量的要求是,必须指向北方和东方作为正.
 
-def convect_sum_jacobi(cell_me:cc.cell_class,cell_nei:cc.cell_class):
-    """将`cell_nei`根据`cell_me`进行jacobi"""
-    return cell_me.jacobi(cell_nei.F,cell_nei.G)
+def _metric(cell, direction):
+  # Coordinate increments from opposing face midpoints. Cofactors, not tangents,
+  # transform Cartesian fluxes (3.1.11). Orient along increasing logical index.
+  ds, dn = np.asarray(cell.jacobian)
+  determinant = ds[0] * dn[1] - ds[1] * dn[0]
+  if determinant == 0:
+    raise ValueError(f'Degenerate coordinate metric at {cell.index}')
+  cofactor = np.array([dn[1], -dn[0]]) if direction == 'WE' else np.array([-ds[1], ds[0]])
+  return np.sign(determinant) * cofactor
 
-def viscous_convect_sum_jacobi(cell_me:cc.cell_class,cell_nei:cc.cell_class):
-    return cell_me.jacobi(cell_nei.viscous_convect_vec()[0],cell_nei.viscous_convect_vec()[1])
 
-def face_convect_mat_4th_mid(cell:cc.cell_class):
-    """四阶中心差分格式"""
-    influence = [np.zeros((5,5)) for _ in range(13)]
-    influence[cc.dic['nn']] = 1/12*convect_sum_jacobi(cell,cell.north.north.north.north)[1]
-    influence[cc.dic['n']] = -2/3*convect_sum_jacobi(cell,cell.north.north)[1]
-    influence[cc.dic['s']] = 2/3*convect_sum_jacobi(cell,cell.south.south)[1]
-    influence[cc.dic['ss']] = -1/12*convect_sum_jacobi(cell,cell.south.south.south.south)[1]
-    influence[cc.dic['ee']] = 1/12*convect_sum_jacobi(cell,cell.east.east.east.east)[0]
-    influence[cc.dic['e']] = -2/3*convect_sum_jacobi(cell,cell.east.east)[0]
-    influence[cc.dic['w']] = 2/3*convect_sum_jacobi(cell,cell.west.west)[0]
-    influence[cc.dic['ww']] = -1/12*convect_sum_jacobi(cell,cell.west.west.west.west)[0]
-    return influence
+def _flux_jacobian(cell, normal):
+  jac = normal[0] * cell.F + normal[1] * cell.G
+  if cc.active_model().nvar == 5:
+    fx, fy = cell.sa_convect_vec()
+    jac[4] = normal[0] * fx + normal[1] * fy
+  return jac
 
-def face_convect_mat_3rd_upwind(cell:cc.cell_class):
-    """三阶迎风格式"""
-    influence = [np.zeros((5,5)) for _ in range(13)]
 
-    if cell.north.vn <= 0:
-        influence[cc.dic['nn']] += -1/6*convect_sum_jacobi(cell,cell.north.north.north.north)[1]
-        influence[cc.dic['n']] += 5/6*convect_sum_jacobi(cell,cell.north.north)[1]
-        influence[cc.dic['c']] += 1/3*convect_sum_jacobi(cell,cell)[1]
-    else:
-        influence[cc.dic['s']] += -1/6*convect_sum_jacobi(cell,cell.south.south)[1]
-        influence[cc.dic['c']] += 5/6*convect_sum_jacobi(cell,cell)[1]
-        influence[cc.dic['n']] += 1/3*convect_sum_jacobi(cell,cell.north.north)[1]
+def _face_stencil(face):
+  if face.direction == 'WE':
+    left, right = face.west, face.east
+    cells = [left.west.west, left, right, right.east.east]
+  else:
+    left, right = face.south, face.north
+    cells = [left.south.south, left, right, right.north.north]
+  normals = [_metric(c, face.direction) for c in cells]
+  matrices = np.array([_flux_jacobian(c, m) for c, m in zip(cells, normals)])
+  normal = (normals[1] + normals[2]) / 2
+  speed = normal @ np.array([(left.u + right.u) / 2, (left.v + right.v) / 2])
+  # On symmetry faces the true normal speed is zero. Roundoff must not
+  # choose a one-sided acoustic flux and break reflection symmetry.
+  speed_scale = np.linalg.norm(normal) * max(np.hypot(c.u, c.v) for c in (left, right))
+  sign = 0.0 if abs(speed) <= 64 * np.finfo(float).eps * speed_scale else np.sign(speed)
+  minus = np.array([-1 / 6, 5 / 6, 1 / 3, 0])
+  plus = np.array([0, 1 / 3, 5 / 6, -1 / 6])
+  a_minus = np.einsum('i,ijk->jk', minus, matrices)
+  a_plus = np.einsum('i,ijk->jk', plus, matrices)
+  # The printed 3.1.14 repeats 1-sign: the left/minus weight must be 1+sign
+  # to implement its stated upwind selection and preserve a constant flux.
+  w_minus = (1 + cc.alpha_H * sign) / 2
+  w_plus = (1 - cc.alpha_H * sign) / 2
+  result = []
+  for i in range(4):
+    block = w_minus * minus[i] * a_minus + w_plus * plus[i] * a_plus
+    # Page 930: SA convection is first-order upwind, independent of alpha_H.
+    block[4] = 0
+    if i == 1:
+      block[4] = (1 + sign) / 2 * matrices[1, 4]
+    elif i == 2:
+      block[4] = (1 - sign) / 2 * matrices[2, 4]
+    result.append(block)
+  return result
 
-    if cell.south.vn >= 0:
-        influence[cc.dic['ss']] += 1/6*convect_sum_jacobi(cell,cell.south.south.south.south)[1]
-        influence[cc.dic['s']] += -5/6*convect_sum_jacobi(cell,cell.south.south)[1]
-        influence[cc.dic['c']] += -1/3*convect_sum_jacobi(cell,cell)[1]
-    else:
-        influence[cc.dic['n']] += 1/6*convect_sum_jacobi(cell,cell.north.north)[1]
-        influence[cc.dic['c']] += -5/6*convect_sum_jacobi(cell,cell)[1]
-        influence[cc.dic['s']] += -1/3*convect_sum_jacobi(cell,cell.south.south)[1]
 
-    if cell.east.vn <= 0:
-        influence[cc.dic['ee']] += -1/6*convect_sum_jacobi(cell,cell.east.east.east.east)[0]
-        influence[cc.dic['e']] += 5/6*convect_sum_jacobi(cell,cell.east.east)[0]
-        influence[cc.dic['c']] += 1/3*convect_sum_jacobi(cell,cell)[0]
-    else:
-        influence[cc.dic['w']] += -1/6*convect_sum_jacobi(cell,cell.west.west)[0]
-        influence[cc.dic['c']] += 5/6*convect_sum_jacobi(cell,cell)[0]
-        influence[cc.dic['e']] += 1/3*convect_sum_jacobi(cell,cell.east.east)[0]
-
-    if cell.west.vn >= 0:
-        influence[cc.dic['ww']] += 1/6*convect_sum_jacobi(cell,cell.west.west.west.west)[0]
-        influence[cc.dic['w']] += -5/6*convect_sum_jacobi(cell,cell.west.west)[0]
-        influence[cc.dic['c']] += -1/3*convect_sum_jacobi(cell,cell)[0]
-    else:
-        influence[cc.dic['e']] += 1/6*convect_sum_jacobi(cell,cell.east.east)[0]
-        influence[cc.dic['c']] += -5/6*convect_sum_jacobi(cell,cell)[0]
-        influence[cc.dic['w']] += -1/3*convect_sum_jacobi(cell,cell.west.west)[0]
-
-    return influence
-
-def viscous_convect_1st_upwind(cell:cc.cell_class):
-    """一阶迎风格式"""
-    influence = [np.zeros(5) for _ in range(13)]
-
-    if cell.north.vn <= 0:
-        influence[cc.dic['n']] = viscous_convect_sum_jacobi(cell,cell.north.north)[1]
-    else:
-        influence[cc.dic['c']] = viscous_convect_sum_jacobi(cell,cell)[1]
-
-    if cell.south.vn >= 0:
-        influence[cc.dic['s']] = viscous_convect_sum_jacobi(cell,cell.south.south)[1]
-    else:
-        influence[cc.dic['c']] = viscous_convect_sum_jacobi(cell,cell)[1]
-
-    if cell.east.vn <= 0:
-        influence[cc.dic['e']] = viscous_convect_sum_jacobi(cell,cell.east.east)[0]
-    else:
-        influence[cc.dic['c']] = viscous_convect_sum_jacobi(cell,cell)[0]
-
-    if cell.west.vn >= 0:
-        influence[cc.dic['w']] = viscous_convect_sum_jacobi(cell,cell.west.west)[0]
-    else:
-        influence[cc.dic['c']] = viscous_convect_sum_jacobi(cell,cell)[0]
-
-    return influence
-
-def convect_hybrid(cell:cc.cell_class):
-    """邢程对流项"""
-    upwind = face_convect_mat_3rd_upwind(cell)
-    mid = face_convect_mat_4th_mid(cell)
-    viscous = viscous_convect_1st_upwind(cell)
-    for j in range(13):
-        cell.form_influence(j, (cc.alpha_H*upwind[j]+(1-cc.alpha_H)*mid[j])/cell.vol )
-        cell.form_influence(j, (np.vstack([np.zeros((4,5)), viscous[j]]))/cell.vol )
+def convect_hybrid(cell):
+  for face, sign, names in [
+    (cell.east, 1, ['w', 'c', 'e', 'ee']),
+    (cell.west, -1, ['ww', 'w', 'c', 'e']),
+    (cell.north, 1, ['s', 'c', 'n', 'nn']),
+    (cell.south, -1, ['ss', 's', 'c', 'n']),
+  ]:
+    for name, block in zip(names, _face_stencil(face)):
+      cell.form_influence(cc.dic[name], -sign * block / cell.vol)
