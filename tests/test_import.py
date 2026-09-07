@@ -27,3 +27,12 @@ def test_import_rejects_unusable_baseflow_before_writing(tmp_path, failure):
   with pytest.raises(ValueError):
     convert(source, target)
   assert not target.exists()
+
+
+def test_import_rejects_unidentified_sa_equation(tmp_path):
+  source = tmp_path / 'source'
+  source.mkdir()
+  (source / 'parameters.json').write_text(json.dumps({'model': 'sa', 'converged': True}))
+  with pytest.raises(ValueError, match='sa_formulation=crouch-2007'):
+    convert(source, tmp_path / 'out')
+  assert not (tmp_path / 'out').exists()

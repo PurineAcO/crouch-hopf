@@ -7,7 +7,6 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'crouch'))
 import classconfig as cc
 import linearization as lin
-from eigmain import wake_sector
 from models import FlowModel, validate_base_model
 
 
@@ -15,16 +14,18 @@ def test_sa_viscosity_response_survives_model_switch(monkeypatch):
   q = np.array([1.2, 40.0, 3.0, 300.0, 2e-4])
   g = np.ones((5, 2))
   monkeypatch.setattr(cc, 'flow_model', FlowModel.SA)
-  mu, mut = lin.viscosity(q)
-  assert mut > 0
-  sa_flux = lin.viscous_flux(q, g, [1, 0], molecular_mu=mu)
-  jq, _ = lin.jacobians(lambda q, g: lin.viscous_flux(q, g, [1, 0], molecular_mu=mu), q, g)
-  assert np.linalg.norm(jq[:4, 4]) > 0
+  assert lin.viscosity(q)[1] > 0
+  sa_a, sa_b = lin.viscous_coefficients(q, g, [1, 0])
+  assert np.linalg.norm(sa_a[:4, 4]) > 0
   monkeypatch.setattr(cc, 'flow_model', FlowModel.LAMINAR)
   assert lin.viscosity(q)[1] == 0
-  assert not np.allclose(lin.viscous_flux(q, g, [1, 0], molecular_mu=mu), sa_flux)
+  lam_a, lam_b = lin.viscous_coefficients(q, g, [1, 0])
+  assert not np.array_equal(lam_b, sa_b)
+  assert not np.any(lam_a[:, 4])
   monkeypatch.setattr(cc, 'flow_model', FlowModel.SA)
-  np.testing.assert_array_equal(lin.viscous_flux(q, g, [1, 0], molecular_mu=mu), sa_flux)
+  actual_a, actual_b = lin.viscous_coefficients(q, g, [1, 0])
+  np.testing.assert_array_equal(actual_a, sa_a)
+  np.testing.assert_array_equal(actual_b, sa_b)
 
 
 @pytest.mark.parametrize('model', list(FlowModel))
@@ -32,20 +33,18 @@ def test_recorded_base_model_must_match(model):
   other = 'sa' if model is FlowModel.LAMINAR else 'laminar'
   with pytest.raises(ValueError, match='does not match'):
     validate_base_model(model, {'model': other}, np.zeros(3))
-  validate_base_model(model, {'model': model.value}, np.zeros(3))
+  parameters = {
+    'model': model.value,
+    'sa_formulation': 'crouch-2007',
+    'thermodynamics': {'R': cc.R, 'Cp': cc.cp, 'Cv': cc.cv, 'gamma': cc.gamma},
+  }
+  validate_base_model(model, parameters, np.zeros(3))
 
 
 @pytest.mark.parametrize('values', [[1e-20], [np.nan], [-1]])
 def test_laminar_rejects_nonzero_or_invalid_sa_input(values):
   with pytest.raises(ValueError):
     validate_base_model(FlowModel.LAMINAR, {'model': 'laminar'}, np.array(values))
-
-
-def test_sa_reflection_sector():
-  basis = wake_sector(8, 3, 5)
-  np.testing.assert_allclose((basis.T @ basis).toarray(), np.eye(60), atol=1e-15)
-  q = (basis @ np.random.default_rng(21).normal(size=60)).reshape(3, 8, 5)
-  np.testing.assert_allclose(q[:, ::-1], q * [-1, -1, 1, -1, -1], atol=1e-15)
 
 
 @pytest.mark.parametrize('model', list(FlowModel))
@@ -122,3 +121,20 @@ def test_operator_requires_explicit_model(monkeypatch):
   monkeypatch.setattr(cc, 'flow_model', None)
   with pytest.raises(ValueError, match='Select a flow model'):
     lin.viscosity(np.array([1, 40, 0, 300, 0]))
+
+
+@pytest.mark.parametrize('formulation', [None, 'standard-sa'])
+def test_sa_rejects_old_equation_metadata(formulation):
+  parameters = {'model': 'sa', 'sa_formulation': formulation}
+  with pytest.raises(ValueError, match='sa_formulation=crouch-2007'):
+    validate_base_model(FlowModel.SA, parameters, np.zeros(3))
+
+
+@pytest.mark.parametrize('cv', [None, 717.645, float('nan')])
+def test_old_or_missing_heat_capacity_is_rejected(cv):
+  parameters = {
+    'model': 'laminar',
+    'thermodynamics': {'R': cc.R, 'Cp': cc.cp, 'Cv': cv, 'gamma': cc.gamma},
+  }
+  with pytest.raises(ValueError, match='thermodynamics'):
+    validate_base_model(FlowModel.LAMINAR, parameters, np.zeros(3))

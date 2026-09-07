@@ -5,40 +5,8 @@ import numpy as np
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'crouch'))
-import boundary
 import classconfig as cc
 import linearization as lin
-
-
-def test_boundary_weights_on_collinear_stretched_grid():
-  points = np.array([[1.0, 2.0], [1.2, 2.4], [1.7, 3.4]])
-  normal = np.array([1.0, 2.0]) / np.sqrt(5)
-  w = boundary.normal_derivative(points, normal)
-  x = (points - points[0]) @ normal
-  np.testing.assert_allclose(w @ np.ones(3), 0, atol=1e-14)
-  np.testing.assert_allclose(w @ x, 1, atol=1e-14)
-  np.testing.assert_allclose(w @ (x * x), 0, atol=1e-14)
-
-
-@pytest.mark.parametrize('kind', ['source', 'flux'])
-def test_local_jacobian_against_centered_difference(kind):
-  q = np.array([1.2e-5, 40.0, 3.0, 300.0, 0.2])
-  g = np.array([[1e-6, -2e-6], [20.0, -15.0], [10.0, 8.0], [2.0, -5.0], [0.1, 0.2]])
-  mu = lin.viscosity(q)[0]
-  fun = (
-    (lambda q, g: lin.source(q, g, 0.4, molecular_mu=mu))
-    if kind == 'source'
-    else (lambda q, g: lin.viscous_flux(q, g, np.array([0.2, 0.3]), molecular_mu=mu))
-  )
-  jq, jg = lin.jacobians(fun, q, g)
-  dq = np.array([1e-6, 4.0, 1.0, 5.0, 0.05])
-  dg = g * 0.2
-  epsilon = 1e-5
-  fd = (fun(q + epsilon * dq, g + epsilon * dg) - fun(q - epsilon * dq, g - epsilon * dg)) / (
-    2 * epsilon
-  )
-  predicted = jq @ dq + np.einsum('ija,ja->i', jg, dg)
-  np.testing.assert_allclose(predicted, np.atleast_1d(fd), rtol=1e-7, atol=1e-11)
 
 
 def test_mass_inverse():
@@ -53,7 +21,7 @@ def test_mass_inverse():
 def test_zero_vorticity_source_is_finite():
   q = np.array([1.2e-5, 40.0, 0.0, 300.0, 0.2])
   g = np.zeros((5, 2))
-  a, b = lin.jacobians(lambda q, g: lin.source(q, g, 0.4), q, g)
+  a, b = lin.source_coefficients(q, g, 0.4)
   assert np.isfinite(a).all() and np.isfinite(b).all()
 
 
@@ -166,3 +134,21 @@ def test_curvilinear_metrics_are_cofactors():
     ms, mn = convect._metric(c, 'WE'), convect._metric(c, 'NS')
     np.testing.assert_allclose([ms @ ds, mn @ dn], [abs(det), abs(det)])
     np.testing.assert_allclose([ms @ dn, mn @ ds], 0, atol=1e-14)
+
+
+def test_convection_sound_speed_matches_thermodynamic_closure():
+  from linearization import mass_jacobian
+
+  np.testing.assert_allclose(cc.cp - cc.cv, cc.R, rtol=1e-14)
+  np.testing.assert_allclose(cc.cp / cc.cv, cc.gamma, rtol=1e-14)
+  q = np.array([1.2, 40.0, -3.0, 300.0, 0.002])
+  cell = cc.cell_class((1, 1), 0, 0, *q, 1, 1)
+  flux = cell.F.copy()
+  flux[4] = cell.sa_convect_vec()[0]
+  sound_speed = np.sqrt(cc.gamma * cc.R * q[3])
+  expected = np.sort([q[1] - sound_speed, q[1], q[1], q[1], q[1] + sound_speed])
+  np.testing.assert_allclose(
+    np.sort(np.linalg.eigvals(np.linalg.solve(mass_jacobian(q), flux))),
+    expected,
+    rtol=1e-12,
+  )

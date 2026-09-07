@@ -24,6 +24,7 @@ Cb2 = _CONFIG['turbulence']['Cb2']  # 扩散项常数Cb2
 Cw1 = _CONFIG['turbulence']['Cw1']  # 破坏项常数Cw1
 Cw2 = _CONFIG['turbulence']['Cw2']  # 壁面阻尼函数常数Cw2
 Cw3 = _CONFIG['turbulence']['Cw3']  # 壁面阻尼函数常数Cw3
+C5 = _CONFIG['turbulence']['C5']  # Crouch 应变率可压缩修正
 rmax = _CONFIG['turbulence']['rmax']  # 无量纲距离r的上限
 
 # ————————————————————physics constants(Sutherland等空气性质)——————————————————
@@ -197,16 +198,6 @@ class face_class:
     self.v = (self.me.v + self.nei.v) / 2
     self.T = (self.me.T + self.nei.T) / 2
     self.miubl = (self.me.miubl + self.nei.miubl) / 2
-
-  def jacobi(self, A, B):
-    """对输入的两个量`A`和`B`进行Jacobi变换"""
-    A1 = A * self.jacobian[0][0] + B * self.jacobian[0][1]
-    A2 = A * self.jacobian[1][0] + B * self.jacobian[1][1]
-    return A1, A2
-
-  @property
-  def vn(self):
-    return self.jacobi(self.u, self.v)[0]
 
   @property
   def nx(self):
