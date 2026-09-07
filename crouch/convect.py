@@ -34,9 +34,13 @@ def _face_stencil(face):
   matrices = np.array([_flux_jacobian(c, m) for c, m in zip(cells, normals)])
   normal = (normals[1] + normals[2]) / 2
   speed = normal @ np.array([(left.u + right.u) / 2, (left.v + right.v) / 2])
-  # On symmetry faces the true normal speed is zero. Roundoff must not
-  # choose a one-sided acoustic flux and break reflection symmetry.
-  speed_scale = np.linalg.norm(normal) * max(np.hypot(c.u, c.v) for c in (left, right))
+  # On symmetry faces the true normal speed is zero. Use an acoustic scale
+  # so absolute base-flow roundoff cannot select one-sided flux near stagnation.
+  # At alpha_H=0 the four flow rows are unchanged. The SA row is first-order
+  # upwind for every alpha_H, so its zero-speed tie is corrected as well.
+  speed_scale = np.linalg.norm(normal) * max(
+    max(np.hypot(c.u, c.v), np.sqrt(cc.gamma * cc.R * c.T)) for c in (left, right)
+  )
   sign = 0.0 if abs(speed) <= 64 * np.finfo(float).eps * speed_scale else np.sign(speed)
   minus = np.array([-1 / 6, 5 / 6, 1 / 3, 0])
   plus = np.array([0, 1 / 3, 5 / 6, -1 / 6])

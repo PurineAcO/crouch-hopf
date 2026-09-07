@@ -2,9 +2,13 @@
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'crouch'))
+from models import validate_thermodynamics
 
 
 def convert(source, root, symmetrize=False):
@@ -12,18 +16,25 @@ def convert(source, root, symmetrize=False):
   p = json.loads((source / 'parameters.json').read_text())
   if p['model'] not in ('laminar', 'sa'):
     raise ValueError('Unknown base-flow model')
+  if p['model'] == 'sa' and p.get('sa_formulation') != 'crouch-2007':
+    raise ValueError('SA base flow must record sa_formulation=crouch-2007')
   if p['converged'] is not True:
     raise ValueError('Base flow has not converged; rerun the steady solver with more steps')
   with (source / 'baseflow.dat').open() as stream:
     title = stream.readline()
   if f'model={p["model"]}' not in title:
     raise ValueError('Field title and parameters disagree on model')
+  if p['model'] == 'sa' and 'sa_formulation=crouch-2007' not in title:
+    raise ValueError('SA field must record sa_formulation=crouch-2007')
   ns, nn = p['nt'], p['nr']
   q = np.loadtxt(source / 'baseflow.dat', skiprows=2).reshape(nn, ns, 9)
   if not np.isfinite(q).all() or np.any(q[:, :, [2, 5, 6]] <= 0):
     raise ValueError('Base flow must be finite with positive density, temperature and pressure')
   if np.any(q[:, :, 8] < 0) or (p['model'] == 'laminar' and np.any(q[:, :, 8] != 0)):
     raise ValueError('Invalid nu-tilde for the selected model')
+  validate_thermodynamics(p)
+  if 'thermo=ideal-air-cv717625-v1' not in title:
+    raise ValueError('Field must record the corrected thermodynamics version')
   if root.exists():
     raise ValueError(f'Output exists; choose a new directory: {root}')
   change = 0.0

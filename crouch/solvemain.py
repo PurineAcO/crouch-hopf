@@ -14,7 +14,7 @@ import numpy as np
 import readrans
 import scipy.sparse as sp
 import viscous
-from models import FlowModel, validate_base_model
+from models import SA_FORMULATION, FlowModel, validate_base_model
 
 
 def main():
@@ -77,6 +77,7 @@ def main():
   sp.save_npz(root / 'S.npz', S)
   sp.save_npz(root / 'T.npz', T)
   info = {
+    'thermodynamics': parameters['thermodynamics'],
     'shape': S.shape,
     'nnz': S.nnz,
     'assembly_seconds': time.perf_counter() - start,
@@ -84,6 +85,10 @@ def main():
     'model': cc.flow_model.value,
     'nvar': cc.flow_model.nvar,
     'molecular_viscosity_linearization': 'frozen',
+    'coefficient_method': 'analytic',
+    'sa_formulation': SA_FORMULATION if cc.flow_model is FlowModel.SA else None,
+    'boundary_derivative': 'quadratic-2d',
+    'time_convention': 'exp(lambda*t)',
     'alpha_H': cc.alpha_H,
   }
   (root / 'assembly.json').write_text(json.dumps(info, indent=2) + '\n')

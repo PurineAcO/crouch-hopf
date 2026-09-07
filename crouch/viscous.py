@@ -1,9 +1,9 @@
-"""Viscous and SA Jacobian assembly. Matrix S represents the temporal RHS."""
+"""按原版 13 个局部块装配黏性与 SA 解析系数；S 表示时间右端。"""
 
 import classconfig as cc
 import grad
 import numpy as np
-from linearization import gradients, jacobians, source, state, viscosity, viscous_flux
+from linearization import gradients, source_coefficients, state, viscous_coefficients
 
 
 def prepare_face_diffusion(face):
@@ -16,10 +16,7 @@ def prepare_face_diffusion(face):
 def face_diffusion(face):
   if face._diffusion is not None:
     return face._diffusion
-  mu = viscosity(face._q)[0]
-  jq, jg = jacobians(
-    lambda q, g: viscous_flux(q, g, face.jacobian[0], molecular_mu=mu), face._q, face._g
-  )
+  jq, jg = viscous_coefficients(face._q, face._g, face.jacobian[0])
   operator = grad.green_gauss_face_vari(face)
   names = (
     ['w', 'e', 'nw', 'ne', 'sw', 'se', 'ee', 'ww']
@@ -49,11 +46,10 @@ def cell_diffusion(cell):
 
 def cell_source(cell):
   q0 = state(cell)
-  mu = viscosity(q0)[0]
-  jq, jg = jacobians(lambda q, g: source(q, g, cell.sad, molecular_mu=mu), q0, gradients(cell))
+  jq, jg = source_coefficients(q0, gradients(cell), cell.sad)
   for name, weights in grad.green_gauss_cell_vari(cell).items():
     block = np.zeros((5, 5))
-    block[4] = np.einsum('ja,a->j', jg[0], weights)
+    block[4] = jg @ weights
     if name == 'c':
-      block[4] += jq[0]
+      block[4] += jq
     cell.form_influence(cc.dic[name], block)
