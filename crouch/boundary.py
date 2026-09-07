@@ -1,49 +1,59 @@
+"""Algebraic perturbation conditions at the innermost/outermost cell-center rings."""
+
 import classconfig as cc
 import numpy as np
-import math
 
 
-def wing_boundary(cell:cc.cell_class):
-    """处理壁面处的边界条件,要求提供的网格必须是壁面处的"""
-    if cell.index[1] != 1 : raise ValueError("Not wing-up cell")
-    dx1 = cell.north.north.x - cell.x
-    dy1 = cell.north.north.y - cell.y
-    dx2 = cell.north.north.north.north.x - cell.north.north.x
-    dy2 = cell.north.north.north.north.y - cell.north.north.y
-    det = dx1*dy2-dx2*dy1
-    C0 = ((dy1-dy2)*cell.south.nx + (dx2-dx1)*cell.south.ny)/det
-    C1 = (dy2*cell.south.nx - dx2*cell.south.ny)/det
-    C2 = -1 * (dy1*cell.south.nx - dx1*cell.south.ny)/det
-    A = np.array([[C0,0,0,0,0],[0,1,0,0,0],[0,0,1,0,0],[0,0,0,C0,0],[0,0,0,0,1]])
-    B = np.array([[C1,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,C1,0],[0,0,0,0,0]])
-    D = np.array([[C2,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,C2,0],[0,0,0,0,0]])
-    cell.form_influence(cc.dic["c"],A)
-    cell.form_influence(cc.dic["n"],B)
-    cell.form_influence(cc.dic["nn"],D)
+def normal_derivative(points, normal):
+  normal = np.asarray(normal) / np.linalg.norm(normal)
+  coordinates = (np.asarray(points) - points[0]) @ normal
+  scale = np.max(np.abs(coordinates))
+  if scale <= 0:
+    raise ValueError('Repeated boundary points')
+  x = coordinates / scale
+  return np.linalg.solve(np.array([np.ones(3), x, x * x]), np.array([0, 1 / scale, 0]))
 
-def far_boundary(cell:cc.cell_class):
-    if cell.index[1] != cc.N_MAX : raise ValueError("Not Far-in cell")
-    CT = (math.sqrt(cc.gamma * cc.R))/((cc.gamma-1) * cell.T)
-    KR = -1 * (cc.R * (cc.gamma -1) * cell.T)/(cell.rho ** cc.gamma)
-    KT = cc.R / (cell.rho ** (cc.gamma -1))
-    dx1 = cell.south.south.x - cell.x
-    dy1 = cell.south.south.y - cell.y
-    dx2 = cell.south.south.south.south.x - cell.south.south.x
-    dy2 = cell.south.south.south.south.y - cell.south.south.y
-    det = dx1*dy2-dx2*dy1
-    C0 = ((dy1-dy2)*cell.north.nx + (dx2-dx1)*cell.north.ny)/det
-    C1 = (dy2*cell.north.nx - dx2*cell.north.ny)/det
-    C2 = -1 * (dy1*cell.north.nx - dx1*cell.north.ny)/det
-    kx = cell.north.nx/(math.sqrt(cell.north.nx**2+cell.north.ny**2))
-    ky = cell.north.ny/(math.sqrt(cell.north.nx**2+cell.north.ny**2))
-    if cell.north.vn <= 0: # 入流边界
-        A = np.array([[0,kx,ky,CT,0],[0,C0*kx,C0*ky,-C0*CT,0],[0,ky,-kx,0,0],[KR,0,0,KT,0],[0,0,0,0,1]])
-        B = np.array([[0,0,0,0,0],[0,C1*kx,C1*ky,-C1*CT,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]])
-        D = np.array([[0,0,0,0,0],[0,C2*kx,C2*ky,-C2*CT,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]])
-    else: # 出流边界
-        A = np.array([[0,C0*kx,C0*ky,C0*CT,0],[0,kx,ky,-CT,0],[0,C0*ky,-C0*kx,0,0],[C0*KR,0,0,C0*KT,0],[0,0,0,0,C0]])
-        B = np.array([[0,C1*kx,C1*ky,C1*CT,0],[0,0,0,0,0],[0,C1*ky,-C1*kx,0,0],[C1*KR,0,0,C1*KT,0],[0,0,0,0,C1]])
-        D = np.array([[0,C2*kx,C2*ky,C2*CT,0],[0,0,0,0,0],[0,C2*ky,-C2*kx,0,0],[C2*KR,0,0,C2*KT,0],[0,0,0,0,C2]])
-    cell.form_influence(cc.dic["c"],A)
-    cell.form_influence(cc.dic["s"],B)
-    cell.form_influence(cc.dic["ss"],D)
+
+def _weights(cell, side):
+  first = getattr(getattr(cell, side), side)
+  second = getattr(getattr(first, side), side)
+  face = cell.south if side == 'north' else cell.north
+  return normal_derivative(np.array([[c.x, c.y] for c in [cell, first, second]]), face.jacobian[0])
+
+
+def wing_boundary(cell):
+  if cell.index[1] != 1:
+    raise ValueError('Not a wall ring cell')
+  weights = _weights(cell, 'north')
+  for i, name in enumerate(['c', 'n', 'nn']):
+    block = np.diag([weights[i], 0, 0, weights[i], 0])
+    if i == 0:
+      block[1, 1] = block[2, 2] = block[4, 4] = 1
+    cell.form_influence(cc.dic[name], block)
+
+
+def far_boundary(cell):
+  if cell.index[1] != cc.N_MAX:
+    raise ValueError('Not a farfield ring cell')
+  ct = np.sqrt(cc.gamma * cc.R * cell.T) / ((cc.gamma - 1) * cell.T)
+  kr = -cc.R * (cc.gamma - 1) * cell.T / cell.rho**cc.gamma
+  kt = cc.R / cell.rho ** (cc.gamma - 1)
+  nx, ny = cell.north.jacobian[0] / np.linalg.norm(cell.north.jacobian[0])
+  plus = np.array([0, nx, ny, ct, 0])
+  minus = np.array([0, nx, ny, -ct, 0])
+  tangent = np.array([0, -ny, nx, 0, 0])
+  entropy = np.array([kr, 0, 0, kt, 0])
+  sa = np.array([0, 0, 0, 0, 1])
+  inflow = cell.north.vn <= 0
+  weights = _weights(cell, 'south')
+  for i, name in enumerate(['c', 's', 'ss']):
+    block = np.zeros((5, 5))
+    block[0] = weights[i] * plus
+    if i == 0:
+      block[1] = minus
+    if inflow:
+      if i == 0:
+        block[2:] = [tangent, entropy, sa]
+    else:
+      block[2:] = weights[i] * np.array([tangent, entropy, sa])
+    cell.form_influence(cc.dic[name], block)

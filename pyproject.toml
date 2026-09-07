@@ -1,12 +1,18 @@
 [project]
 name = "crouch-hopf"
 version = "0.1.0"
-description = "Add your description here"
+description = "Global linear stability of steady compressible laminar and SA-RANS flows"
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "matplotlib>=3.11.1",
-    "numpy>=2.5.1",
-    "scipy>=1.18.0",
-    "tqdm>=4.70.0",
-]
+requires-python = ">=3.10"
+dependencies = ["matplotlib==3.10.9", "numpy==2.2.6", "scipy==1.15.3", "tqdm==4.67.1"]
+
+[dependency-groups]
+dev = ["pytest>=8,<9", "ruff>=0.11"]
+
+[tool.ruff]
+indent-width = 2
+line-length = 100
+
+[tool.ruff.format]
+indent-style = "space"
+quote-style = "single"
