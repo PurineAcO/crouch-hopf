@@ -12,6 +12,7 @@ import scipy.linalg as la
 import scipy.sparse as sp
 from eigmain import (
   eigenpair_residuals,
+  peak_rss_bytes,
   project_reflection,
   reflection_basis,
   scale_pencil,
@@ -287,7 +288,11 @@ def test_reflection_cli_lifts_and_preserves_outputs(tmp_path, nvar):
   report = json.loads((tmp_path / 'paritycheck_solve.json').read_text())
   assert data['modes'].shape == (18 * nvar, 2)
   assert report['wake_symmetry'] and report['solve_dimension'] == 9 * nvar
-  assert report['full_dimension'] == 18 * nvar and report['peak_rss_bytes'] > 0
+  assert report['full_dimension'] == 18 * nvar
+  if peak_rss_bytes() is None:
+    assert report['peak_rss_bytes'] is None
+  else:
+    assert report['peak_rss_bytes'] > 0
   assert report['max_residual'] < 1e-6 and report['boundary_error'] < 1e-6
   assert report['ordering'] == 'MMD_AT_PLUS_A'
   np.testing.assert_array_equal(data['modes'], _wake_reflect(data['modes'], 6, 3, nvar))
