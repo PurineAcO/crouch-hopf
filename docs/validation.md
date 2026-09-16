@@ -4,14 +4,14 @@
 
 ## 可重复的软件验证
 
-```sh
+```powershell
 uv sync --frozen
-OPENBLAS_NUM_THREADS=2 uv run --frozen pytest -q
+$env:OPENBLAS_NUM_THREADS=2; uv run --frozen pytest -q
 uv run --frozen ruff check .
 uv run --frozen ruff format --check .
 ```
 
-当前测试共205项，覆盖：
+当前测试共211项，覆盖：
 
 - 独立符号推导的黏性、热传导、SA产生/破坏、梯度平方及C5系数；不使用物理通量有限差分或复数步长。
 - 二维二次多项式的边界法向导数、偏斜与高纵横比几何、法向对齐时的原三点极限，以及Riemann不变量的解析导数与入出流分配。
@@ -44,7 +44,7 @@ Re60、alpha=0的论文Table 1对照值分别为N80：频率0.7614、增长率0.
 - 外域125D→200D只检查了网格扩展保留旧节点，尚未完成谱验证。
 - 边界仍在首/末层单元中心施加。二维二次准确的导数不能消除边界位置误差；尚未定量确认其对特征值偏差的贡献。
 - alpha=0.2/1的部分离散特征对虽然残差小，但物理尾迹分支未通过验证。零速舍入选边修复解决反射缺陷，并不证明迎风离散已复现论文Table 1。
-- 使用匹配的Purine基流实现：热力学参数为R=287.05、Cp=1004.675、Cv=717.625、gamma=1.4；SA基流还须包含C5项并标记`sa_formulation=crouch-2007`。旧场须重新计算，不能只改标签。
+- 基流须使用与配置一致的物理版本：热力学参数为 R=287.05、Cp=1004.675、Cv=717.625、gamma=1.4；SA 基流还须包含 C5 项并标记 `sa_formulation=crouch-2007`。旧场须重新导出，不能只改标签。
 - SA有独立完整耦合谱回归，最大特征对残差约7.09e-10；这是代数验证，不是Re60层流物理验证。
 
 论文：Crouch, Garbaruk & Magidov (2007), *Predicting the onset of flow unsteadiness based on global instability*, JCP 224, 924–940。系数、边界及求解约定见[numerics.md](numerics.md)，运行步骤见[quickstart.md](quickstart.md)。

@@ -12,7 +12,6 @@ import scipy.linalg as la
 import scipy.sparse as sp
 from eigmain import (
   eigenpair_residuals,
-  peak_rss_bytes,
   project_reflection,
   reflection_basis,
   scale_pencil,
@@ -20,6 +19,16 @@ from eigmain import (
   solve_reflection,
   validate_reflection_input,
 )
+
+
+def assert_peak_rss_is_platform_consistent(report):
+  """原生 Windows 没有 resource 模块，求解报告按约定写 null；有该模块时必须为正。"""
+  import eigmain
+
+  if eigmain.resource is None:
+    assert report['peak_rss_bytes'] is None
+  else:
+    assert isinstance(report['peak_rss_bytes'], int) and report['peak_rss_bytes'] > 0
 
 
 def _pencil(nvar=4, ns=6):
@@ -289,10 +298,7 @@ def test_reflection_cli_lifts_and_preserves_outputs(tmp_path, nvar):
   assert data['modes'].shape == (18 * nvar, 2)
   assert report['wake_symmetry'] and report['solve_dimension'] == 9 * nvar
   assert report['full_dimension'] == 18 * nvar
-  if peak_rss_bytes() is None:
-    assert report['peak_rss_bytes'] is None
-  else:
-    assert report['peak_rss_bytes'] > 0
+  assert_peak_rss_is_platform_consistent(report)
   assert report['max_residual'] < 1e-6 and report['boundary_error'] < 1e-6
   assert report['ordering'] == 'MMD_AT_PLUS_A'
   np.testing.assert_array_equal(data['modes'], _wake_reflect(data['modes'], 6, 3, nvar))

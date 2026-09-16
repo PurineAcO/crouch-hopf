@@ -41,7 +41,9 @@ def viscous_coefficients(q, g, normal):
   """返回黏性面通量的一阶系数 Aq′+B∇q′，法向包含面长。
 
   动量：τ′n = μeff δD·n + μt′ D·n。
-  能量：u′·τn + u·τ′n + k ∂nT′ + k′ ∂nT。
+  能量：u′·τn + u·τ′n + k ∂nT′ + k′ ∂nT，k = Cp(μ/Pr + μt/Prt)。
+  论文式 (2.1.7)、(2.2.7) 把 λeff 印成 μ/Pr + ρνt/Prt、λ′eff 印成 μ′eff/Prt，
+  漏了 Cp，量纲不成立（能量方程两侧应为 W/m³）；此处采用含 Cp 的物理形式。
   SA 扩散：(μ+ρν̃) ∂nν̃′/σ + (ν̃ρ′+ρν̃′) ∂nν̃/σ。
   """
   rho, u, v, _, nu = q
