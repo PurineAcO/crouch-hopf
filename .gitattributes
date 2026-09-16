@@ -1,0 +1,7 @@
+# 工作区固定使用 LF：Windows 上 core.autocrlf=true 会在 checkout 时写成 CRLF，
+# 而 Ruff(format) 与 pytest 的期望是 LF。显式声明后不再依赖各人的 autocrlf 设置。
+* text=auto eol=lf
+
+*.png binary
+*.pdf binary
+*.npz binary
