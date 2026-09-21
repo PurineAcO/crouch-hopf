@@ -29,6 +29,11 @@ TITLE = (
   'TITLE="step {step} model=sa sa_model=crouch2007-eq2.1.5-v1 '
   'sa_formulation=crouch-2007 thermo=ideal-air-cv717625-v1"'
 )
+# 求解器有两种收敛判据措辞：相对更新量，或各流动量下降的量级数。
+CONVERGED = re.compile(
+  r'Converged at step (\d+), (?:relative_update=([0-9.eE+-]+)'
+  r'|every field dropped at least ([0-9.]+) decades)'
+)
 BASE_FLOW_NOTE = (
   '基流端记录 Cv=717.645，其 SA 源项不含 C5 项；本算例的 sa_formulation 与 Cv 按基流记录采用'
 )
@@ -44,7 +49,7 @@ def dynamic_viscosity(temperature):
 
 def read_wall_faces(mesh):
   """Return the wall ring face count, ring coordinates and the declared counts."""
-  lines = mesh.read_text().splitlines()
+  lines = mesh.read_text(encoding='utf-8').splitlines()
   nodes, faces, cells, groups = (int(value) for value in lines[0].split())
   if nodes < 4 or groups != 3:
     raise ValueError('Expected a single-block mesh with three boundary groups')
@@ -84,18 +89,20 @@ def main():
   parser.add_argument('case', type=Path, help='delivered case directory containing config.json')
   args = parser.parse_args()
   root = args.case.resolve()
-  config = json.loads((root / 'config.json').read_text())
+  config = json.loads((root / 'config.json').read_text(encoding='utf-8'))
   farfield = config['farfield']
-  log = (root / 'run.log').read_text()
-  match = re.search(r'Converged at step (\d+), relative_update=([0-9.eE+-]+)', log)
+  log = (root / 'run.log').read_text(encoding='utf-8')
+  match = CONVERGED.search(log)
   if not match:
     raise SystemExit('run.log does not record a converged state')
-  step, relative_update = int(match.group(1)), float(match.group(2))
+  step = int(match.group(1))
+  relative_update = float(match.group(2)) if match.group(2) else None
+  decades = float(match.group(3)) if match.group(3) else None
   dump = root / 'field' / f'step_{step:06d}.dat'
   if not dump.is_file():
     raise SystemExit(f'missing converged dump: {dump}')
   nt, ring, counts = read_wall_faces(root / 'mesh.txt')
-  rows = dump.read_text().splitlines()
+  rows = dump.read_text(encoding='utf-8').splitlines()
   q = [[float(value) for value in line.split()] for line in rows[2:]]
   if any(len(row) != FIELDS for row in q):
     raise SystemExit('field rows must all hold nine values')
@@ -166,7 +173,8 @@ def main():
     'convergence': {
       'step': step,
       'relative_update': relative_update,
-      'criterion': 'solver run.log; inspect residual diagnostics independently',
+      'decades': decades,
+      'criterion': f'solver run.log: {match.group(0)}',
     },
     'farfield_ring_check': checks,
     'provenance': {
@@ -180,7 +188,7 @@ def main():
       'mesh_sha256': hashlib.sha256((root / 'mesh.txt').read_bytes()).hexdigest(),
     },
   }
-  (root / 'parameters.json').write_text(json.dumps(parameters, indent=2) + '\n')
+  (root / 'parameters.json').write_text(json.dumps(parameters, indent=2) + '\n', encoding='utf-8')
   (root / 'baseflow.dat').write_text(TITLE.format(step=step) + '\n' + '\n'.join(rows[1:]) + '\n')
   print(f'parameters.json: Ma={ma:.9f} Re={parameters["Re"]:.6e} alpha={alpha:.6f} deg')
   print(f'  U={speed:.9f} m/s rho={density:.12e} mu={mu:.12e}')
@@ -189,7 +197,7 @@ def main():
     f'  ring check: alpha={checks["ring_alpha_deg"]:.4f} deg T={outer_T:.4f} K '
     f'p={outer_p:.4f} Pa Ma={checks["ring_Ma"]:.6f}'
   )
-  print(f'  converged at step {step}, relative_update={relative_update:.6e}')
+  print(f'  converged at step {step}: {match.group(0)}')
   print('baseflow.dat: title rewritten, data lines preserved')
 
 

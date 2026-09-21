@@ -20,7 +20,7 @@ from models import validate_thermodynamics
 
 def read_mesh(path, ns, nr):
   """Return (xy, wall_midpoints) after checking the O-grid numbering convention."""
-  lines = path.read_text().splitlines()
+  lines = path.read_text(encoding='utf-8').splitlines()
   nodes, faces, cells, groups = (int(value) for value in lines[0].split())
   if groups != 3 or (nodes, faces, cells) != ((nr + 1) * ns, (2 * nr + 1) * ns, nr * ns):
     raise ValueError('Mesh counts disagree with the O-grid nt/nr in parameters.json')
@@ -122,7 +122,7 @@ def convert(source, root, symmetrize=False, field=None, in_place=False):
   parameters_path = source / 'parameters.json'
   if not parameters_path.is_file():
     raise ValueError('Missing parameters.json; run cases/<case>/run.py to export the base flow')
-  p = json.loads(parameters_path.read_text())
+  p = json.loads(parameters_path.read_text(encoding='utf-8'))
   if p['model'] not in ('laminar', 'sa'):
     raise ValueError('Unknown base-flow model')
   if p['model'] == 'sa' and p.get('sa_formulation') != 'crouch-2007':
@@ -178,7 +178,7 @@ def convert(source, root, symmetrize=False, field=None, in_place=False):
     np.linalg.norm(q[:, :, None, :2] - wall_midpoints[None, None, :, :], axis=3), axis=2
   )
   (root / 'input').mkdir(parents=True)
-  (root / 'input/parameters.json').write_text(json.dumps(p, indent=2) + '\n')
+  (root / 'input/parameters.json').write_text(json.dumps(p, indent=2) + '\n', encoding='utf-8')
   (root / 'import.json').write_text(
     json.dumps(
       {

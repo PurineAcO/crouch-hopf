@@ -51,6 +51,11 @@ def active_model():
 S_MAX = 0  # 每层单元个数
 N_MAX = 0  # 单元层数
 alpha_H = _CONFIG['solver']['alpha_H']  # 混合格式系数
+# True 时远场面用单向迎风(Riemann)闭合；False 时用论文 (2.3.6)/(2.3.7) 的特征约束
+far_riemann = _CONFIG['solver'].get('far_riemann', False)
+# True 时黏性/热传导/SA 扩散的面法向导数用两点中心差分（论文 3.1 的
+# second-order central difference），而不是由 Green-Gauss 面值平均给出。
+viscous_face_central = _CONFIG['solver'].get('viscous_face_central', False)
 HALO = _CONFIG['solver']['HALO']  # 虚单元层数
 
 # 在实际的计算中,程序一共会和本家网格的周围13个单元发生关系,这是他们在cell.influence的编号

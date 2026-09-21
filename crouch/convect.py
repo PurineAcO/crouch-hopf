@@ -63,6 +63,37 @@ def _face_stencil(face):
   return result
 
 
+def far_face_stencil(face):
+  """远场外边界面的单向迎风（Riemann）闭合。
+
+  外部状态的扰动取零，因此只保留出流信息：法向基流速度为正时，面通量由边界单元
+  的单侧二阶重构给出，权重 (3/2, -1/2) 之和为 1，故常值扰动不产生伪通量；
+  法向速度非正（入流）时扰动通量为零，即入流特征不被激励。SA 对流恒为一阶迎风，
+  取边界单元自身值。
+
+  与论文 (2.3.6)/(2.3.7) 的区别：出流特征不再用 ∂n=0 外推（那是部分反射的），
+  而是直接以外部的零扰动做迎风选择，因此出流波可以自由离开计算域。
+  """
+  left, right = face.south, face.north
+  cells = [left.south.south, left, right, right.north.north]
+  normals = [_metric(c, face.direction) for c in cells]
+  matrices = np.array([_flux_jacobian(c, m) for c, m in zip(cells, normals)])
+  normal = (normals[1] + normals[2]) / 2
+  speed = normal @ np.array([(left.u + right.u) / 2, (left.v + right.v) / 2])
+  speed_scale = np.linalg.norm(normal) * max(
+    max(np.hypot(c.u, c.v), np.sqrt(cc.gamma * cc.R * c.T)) for c in (left, right)
+  )
+  sign = 0.0 if abs(speed) <= 64 * np.finfo(float).eps * speed_scale else np.sign(speed)
+  blocks = [np.zeros((5, 5)) for _ in range(4)]
+  if sign > 0:
+    # 用边界单元自身的通量雅可比，作用在单侧重构的扰动上。
+    blocks[0] = -0.5 * matrices[1]
+    blocks[1] = 1.5 * matrices[1]
+    blocks[0][4] = 0.0
+    blocks[1][4] = matrices[1][4]
+  return blocks
+
+
 def convect_hybrid(cell):
   for face, sign, names in [
     (cell.east, 1, ['w', 'c', 'e', 'ee']),
@@ -70,5 +101,10 @@ def convect_hybrid(cell):
     (cell.north, 1, ['s', 'c', 'n', 'nn']),
     (cell.south, -1, ['ss', 's', 'c', 'n']),
   ]:
-    for name, block in zip(names, _face_stencil(face)):
+    # 只有远场外边界那一面改用 Riemann 闭合；其余面与论文 3.1.10--19 完全相同。
+    if cc.far_riemann and face is cell.north and cell.index[1] == cc.N_MAX:
+      blocks = far_face_stencil(face)
+    else:
+      blocks = _face_stencil(face)
+    for name, block in zip(names, blocks):
       cell.form_influence(cc.dic[name], -sign * block / cell.vol)

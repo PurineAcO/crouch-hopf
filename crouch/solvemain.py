@@ -21,15 +21,29 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('case', type=Path)
   parser.add_argument('--alpha', type=float, choices=[0.0, 0.2, 1.0], default=cc.alpha_H)
+  parser.add_argument(
+    '--far-riemann',
+    action='store_true',
+    default=cc.far_riemann,
+    help='远场外边界改用单向迎风(Riemann)闭合，取代论文 (2.3.6)/(2.3.7) 的特征约束',
+  )
+  parser.add_argument(
+    '--viscous-face-central',
+    action='store_true',
+    default=cc.viscous_face_central,
+    help='黏性/热传导/SA 扩散的面法向导数改用两点中心差分（论文 3.1 的写法）',
+  )
   parser.add_argument('--model', choices=[m.value for m in FlowModel], required=True)
   args = parser.parse_args()
   cc.alpha_H = args.alpha
+  cc.far_riemann = args.far_riemann
+  cc.viscous_face_central = args.viscous_face_central
   cc.flow_model = FlowModel(args.model)
   root = args.case.resolve()
   start = time.perf_counter()
   readrans.read_rans(str(root / 'ransdata.txt'), str(root / 'edge.txt'))
   parameters_path = root / 'input/parameters.json'
-  parameters = json.loads(parameters_path.read_text())
+  parameters = json.loads(parameters_path.read_text(encoding='utf-8'))
   nu_tilde = np.array(
     [cc.goto_HALOcell((s, n)).miubl for n in range(1, cc.N_MAX + 1) for s in range(1, cc.S_MAX + 1)]
   )
@@ -40,7 +54,9 @@ def main():
   formmat._vals.clear()
   for s in range(1, cc.S_MAX + 1):
     boundary.wing_boundary(cc.goto_HALOcell((s, 1)))
-    boundary.far_boundary(cc.goto_HALOcell((s, cc.N_MAX)))
+    # Riemann 闭合下远场环按普通面装配，不再写特征约束行。
+    if not cc.far_riemann:
+      boundary.far_boundary(cc.goto_HALOcell((s, cc.N_MAX)))
   for n in range(1, cc.N_MAX + 1):
     for s in range(1, cc.S_MAX + 1):
       c = cc.goto_HALOcell((s, n))
@@ -48,7 +64,7 @@ def main():
   for face in cc.FaceList_NS + cc.FaceList_WE:
     viscous.prepare_face_diffusion(face)
   print('Boundary and gradients ready', flush=True)
-  for n in range(2, cc.N_MAX):
+  for n in range(2, cc.N_MAX + 1 if cc.far_riemann else cc.N_MAX):
     for s in range(1, cc.S_MAX + 1):
       c = cc.goto_HALOcell((s, n))
       convect.convect_hybrid(c)
@@ -90,8 +106,10 @@ def main():
     'boundary_derivative': 'quadratic-2d',
     'time_convention': 'exp(lambda*t)',
     'alpha_H': cc.alpha_H,
+    'far_riemann': cc.far_riemann,
+    'viscous_face_central': cc.viscous_face_central,
   }
-  (root / 'assembly.json').write_text(json.dumps(info, indent=2) + '\n')
+  (root / 'assembly.json').write_text(json.dumps(info, indent=2) + '\n', encoding='utf-8')
   print(info, flush=True)
 
 

@@ -23,11 +23,32 @@ def face_diffusion(face):
     if face.direction == 'WE'
     else ['s', 'n', 'se', 'sw', 'ss', 'nw', 'nn', 'ne']
   )
+  gradient_coefficients = jg
+  normal = None
+  scale = 0.0
+  if cc.viscous_face_central:
+    # 面法向导数改用两点中心差分，切向分量仍取两单元平均梯度但去掉其法向部分。
+    # Green-Gauss 的面值算术平均会把 2Δ（棋盘格）模态整体消掉，使黏性、热传导与
+    # SA 扩散对格点分支零响应；论文 3.1 用的是 second-order central difference。
+    area = np.asarray(face.jacobian[0], dtype=float)
+    unit = area / np.linalg.norm(area)
+    first, second = (face.west, face.east) if face.direction == 'WE' else (face.south, face.north)
+    offset = np.array([second.x - first.x, second.y - first.y])
+    distance = float(np.linalg.norm(offset))
+    if distance <= 0:
+      raise ValueError(f'Degenerate face centre distance at {face.direction}')
+    direction = offset / distance
+    scale = float(direction @ unit) / distance
+    normal = np.einsum('ija,a->ij', jg, unit)
+    gradient_coefficients = np.einsum('ija,ab->ijb', jg, np.eye(2) - np.outer(unit, unit))
   result = []
   for i, name in enumerate(names):
-    block = np.einsum('ija,a->ij', jg, operator[name])
+    block = np.einsum('ija,a->ij', gradient_coefficients, operator[name])
     if i < 2:
       block = block + jq / 2
+      if normal is not None:
+        # names[0] 是西/南侧单元，names[1] 是东/北侧单元。
+        block = block + (scale if i else -scale) * normal
     result.append(block)
   face._diffusion = result
   return result

@@ -55,7 +55,9 @@ def formmat(cell: cc.cell_class):
   """开始写稀疏矩阵"""
   s, n = cell.index
   g_self = ((n - 1) * cc.S_MAX + (s - 1)) * 5  # 本块行起始行
-  W = None if (n == 1 or n == cc.N_MAX) else _primitive_map(cell)
+  # 远场环在 Riemann 闭合下是普通通量方程，需要原始变量变换。
+  algebraic_far = n == cc.N_MAX and not cc.far_riemann
+  W = None if (n == 1 or algebraic_far) else _primitive_map(cell)
   for k in range(13):
     M = cell.influence[k]
     if not M.any():
@@ -87,7 +89,8 @@ def build():
   S = sp.csr_matrix((_vals, (_rows, _cols)), shape=(n_phys * 5, n_phys * 5))
   S.sum_duplicates()
   d = np.zeros(n_phys * 5)
-  for n in range(2, cc.N_MAX):
+  # 壁面环始终是代数约束；远场环仅在旧的特征约束下如此。
+  for n in range(2, cc.N_MAX + 1 if cc.far_riemann else cc.N_MAX):
     d[(n - 1) * cc.S_MAX * 5 : n * cc.S_MAX * 5] = 1.0
   T = sp.diags(d)
   return S, T

@@ -19,7 +19,7 @@ def main():
   parser.add_argument('--mode', type=int, required=True)
   args = parser.parse_args()
   root = args.case
-  p = json.loads((root / 'input/parameters.json').read_text())
+  p = json.loads((root / 'input/parameters.json').read_text(encoding='utf-8'))
   data = np.genfromtxt(root / 'ransdata.txt', names=True)
   modes = np.load(root / f'{args.label}_modes.npz')
   if not 0 <= args.mode < len(modes['eigenvalues']):

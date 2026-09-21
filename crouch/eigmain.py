@@ -1,6 +1,7 @@
 """Scaled full sparse generalized stability eigenproblem."""
 
 import argparse
+import hashlib
 import json
 import sys
 import time
@@ -15,6 +16,44 @@ try:
   import resource
 except ImportError:  # Native Windows: RSS metadata is optional, solving is not.
   resource = None
+
+
+def file_sha256(path):
+  digest = hashlib.sha256()
+  with path.open('rb') as stream:
+    for block in iter(lambda: stream.read(1 << 20), b''):
+      digest.update(block)
+  return digest.hexdigest()
+
+
+def assembly_fingerprint(root):
+  """Identify the operator this solve used: assembly settings plus matrix hashes.
+
+  solve.json would otherwise pin down nothing about which assembly produced the
+  matrices, so a results file could not be traced back to its discretisation.
+  """
+  record = {}
+  configuration = root / 'assembly.json'
+  if configuration.is_file():
+    recorded = json.loads(configuration.read_text(encoding='utf-8'))
+    for name in (
+      'model',
+      'nvar',
+      'alpha_H',
+      'far_riemann',
+      'viscous_face_central',
+      'sa_formulation',
+      'molecular_viscosity_linearization',
+      'boundary_derivative',
+      'grid',
+      'nnz',
+    ):
+      record[name] = recorded.get(name)
+  for name in ('S.npz', 'T.npz'):
+    matrix = root / name
+    if matrix.is_file():
+      record[f'{name}_sha256'] = file_sha256(matrix)
+  return record
 
 
 def peak_rss_bytes():
@@ -291,8 +330,8 @@ def main():
   parser.add_argument('--ordering', choices=['COLAMD', 'MMD_AT_PLUS_A'], default='COLAMD')
   args = parser.parse_args()
   root = args.case.resolve()
-  parameters = json.loads((root / 'input/parameters.json').read_text())
-  assembly = json.loads((root / 'assembly.json').read_text())
+  parameters = json.loads((root / 'input/parameters.json').read_text(encoding='utf-8'))
+  assembly = json.loads((root / 'assembly.json').read_text(encoding='utf-8'))
   model = FlowModel(assembly['model'])
   nvar = model.nvar
   if parameters['model'] != model.value:
@@ -368,6 +407,7 @@ def main():
     root / f'{args.label}_modes.npz', eigenvalues=eigenvalues, modes=full, scales=scales
   )
   info = {
+    'assembly': assembly_fingerprint(root),
     'model': model.value,
     'nvar': nvar,
     'sigma': [sigma.real, sigma.imag],
@@ -390,7 +430,9 @@ def main():
     'max_residual': float(rows[:, -1].max()),
     'boundary_error': solve_info['boundary_error'],
   }
-  (root / f'{args.label}_solve.json').write_text(json.dumps(info, indent=2) + '\n')
+  (root / f'{args.label}_solve.json').write_text(
+    json.dumps(info, indent=2) + '\n', encoding='utf-8'
+  )
   print(rows, flush=True)
   print(info, flush=True)
 

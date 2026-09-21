@@ -26,6 +26,8 @@
   },
   "solver": {
     "HALO": 2,
-    "alpha_H": 0.2
+    "alpha_H": 0.2,
+    "far_riemann": false,
+    "viscous_face_central": false
   }
 }

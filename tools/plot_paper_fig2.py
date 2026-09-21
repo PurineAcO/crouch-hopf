@@ -23,7 +23,7 @@ def main():
   )
   args = parser.parse_args()
   case = args.case.resolve()
-  parameters = json.loads((case / 'input/parameters.json').read_text())
+  parameters = json.loads((case / 'input/parameters.json').read_text(encoding='utf-8'))
   if parameters['model'] != 'laminar':
     parser.error('The paper cylinder comparison requires a four-variable laminar mode')
   data = np.sort(np.genfromtxt(case / 'ransdata.txt', names=True), order=['n', 's'])
@@ -61,7 +61,7 @@ def main():
   colorbar = fig.colorbar(field, ax=ax, fraction=0.045, pad=0.03, ticks=np.linspace(-1, 1, 11))
   colorbar.set_label(r'$\mathrm{Re}(\hat{u})/\max|\mathrm{Re}(\hat{u})|$')
   value = complex(modes['eigenvalues'][args.mode])
-  assembly = json.loads((case / 'assembly.json').read_text())
+  assembly = json.loads((case / 'assembly.json').read_text(encoding='utf-8'))
   ax.set_title(
     f'Re={parameters["Re"]:g}, Ma={parameters["Ma"]:g}, '
     f'{parameters["nt"]}×{parameters["nr"]} cells\n'
@@ -96,7 +96,7 @@ def main():
     'window_D': [-5, 15, -10, 10],
     'field': 'real u perturbation only; no mean-flow addition',
   }
-  output.with_suffix('.json').write_text(json.dumps(info, indent=2) + '\n')
+  output.with_suffix('.json').write_text(json.dumps(info, indent=2) + '\n', encoding='utf-8')
   print(output)
 
 
