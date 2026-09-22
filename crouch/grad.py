@@ -61,7 +61,6 @@ def green_gauss_face_vari(face: cc.face_class):
 def green_gauss_cell_vari(cell: cc.cell_class):
   """计算某个`cell`的梯度影响矩阵,根据green-gauss方法,会和5个网格挂钩\n
   为了看起来舒服,会返回一个字典."""
-
   grad_dic = {}
   grad_dic['c'] = (
     (
@@ -100,3 +99,34 @@ def green_gauss_from_JST(
   cell.vgrad = np.array([np.dot(v_vec, nx_vec), np.dot(v_vec, ny_vec)]) / cell.vol
   cell.miublgrad = np.array([np.dot(miubl_vec, nx_vec), np.dot(miubl_vec, ny_vec)]) / cell.vol
   cell.Tgrad = np.array([np.dot(T_vec, nx_vec), np.dot(T_vec, ny_vec)]) / cell.vol
+
+
+GRADIENT_FIELDS = ('rhograd', 'ugrad', 'vgrad', 'Tgrad', 'miublgrad')
+
+
+def mirror_ghost(cell: cc.cell_class, source: cc.cell_class, face: cc.face_class, value_map):
+  """补齐虚单元的几何与基流梯度，使其与 ``formmat`` 的虚单元值映射一致。
+
+  ``source`` 是该虚单元在 ``formmat._ghost_target`` 里折叠到的实单元：虚单元中心是
+  ``source`` 中心关于边界面 ``face`` 中点的镜像，取值关系是 ``c(-n) = s_c c(n)``，
+  ``s_c`` 取 ``value_map`` 的对角。对镜像场求导得到
+
+    切向分量乘 ``s_c``，法向分量乘 ``-s_c``
+
+  即 ``grad c(-n) = s_c * (切向分量 - 法向分量)``。物面用 ``_WALL_MAP``（u,v,ν̃ 取负）时，
+  虚单元与实单元的面平均值给出 û=v̂=ν̃̂=0、ρ̂/T̂ 的两点面法向导数为零，而 u/v/ν̃ 的
+  两点面法向导数保留——壁面摩擦与壁面热流就是靠它进入首层守恒律的。
+  ``fill_ghost`` 只填了物理量、坐标留成 (0,0)，而两点面法向导数与边界面黏性系数
+  需要这里的坐标。
+  """
+  normal = np.asarray(face.jacobian[0], dtype=float)
+  normal = normal / np.linalg.norm(normal)
+  tangent = np.array([-normal[1], normal[0]])
+  midpoint = np.asarray(face.mid, dtype=float)
+  cell.x, cell.y = midpoint - (np.array([source.x, source.y]) - midpoint)
+  for attribute, sign in zip(GRADIENT_FIELDS, np.diag(value_map)):
+    gradient = np.asarray(getattr(source, attribute), dtype=float)
+    normal_part = float(gradient @ normal)
+    tangential_part = float(gradient @ tangent)
+    setattr(cell, attribute, sign * (tangential_part * tangent - normal_part * normal))
+  return cell

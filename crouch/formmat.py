@@ -24,6 +24,16 @@ _WALL_MAP = np.diag([1.0, -1.0, -1.0, 1.0, -1.0])
 _FAR_MAP = np.eye(5)
 
 
+def solved_rings():
+  """由守恒律（而非边界约束）控制的径向环，也就是 ``T`` 对角为 1 的环。
+
+  物面条件只通过虚单元镜像在物面上施加，所以物面环（n=1）是普通守恒行；
+  远场环只有在 ``far_riemann`` 面闭合下才是普通面方程，否则仍是代数约束行。
+  装配循环与 ``build`` 必须共用这一个范围，避免两处漂移。
+  """
+  return range(1, cc.N_MAX + 1 if cc.far_riemann else cc.N_MAX)
+
+
 def _ghost_target(ns: int, nn_: int):
   """虚单元前处理,返回虚单元槽位`ns`,`nn_`和映射矩阵`MAP`"""
   if nn_ <= 0:
@@ -55,9 +65,9 @@ def formmat(cell: cc.cell_class):
   """开始写稀疏矩阵"""
   s, n = cell.index
   g_self = ((n - 1) * cc.S_MAX + (s - 1)) * 5  # 本块行起始行
-  # 远场环在 Riemann 闭合下是普通通量方程，需要原始变量变换。
+  # 远场环在特征闭合下是代数约束，其余环（含物面环）都是守恒行。
   algebraic_far = n == cc.N_MAX and not cc.far_riemann
-  W = None if (n == 1 or algebraic_far) else _primitive_map(cell)
+  W = None if algebraic_far else _primitive_map(cell)
   for k in range(13):
     M = cell.influence[k]
     if not M.any():
@@ -89,8 +99,8 @@ def build():
   S = sp.csr_matrix((_vals, (_rows, _cols)), shape=(n_phys * 5, n_phys * 5))
   S.sum_duplicates()
   d = np.zeros(n_phys * 5)
-  # 壁面环始终是代数约束；远场环仅在旧的特征约束下如此。
-  for n in range(2, cc.N_MAX + 1 if cc.far_riemann else cc.N_MAX):
+  # 只有被代数边界约束替换掉的环不带时间导数。
+  for n in solved_rings():
     d[(n - 1) * cc.S_MAX * 5 : n * cc.S_MAX * 5] = 1.0
   T = sp.diags(d)
   return S, T

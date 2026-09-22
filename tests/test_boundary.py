@@ -69,22 +69,34 @@ def make_stencil(monkeypatch, far=False, mach=0.3):
     (first, 'west', fw),
   ]:
     setattr(owner, direction, SimpleNamespace(**{direction: neighbor}))
-  setattr(c, 'north' if far else 'south', SimpleNamespace(jacobian=np.array([normal, tangent])))
+  # 边界面：物面在环单元内侧半个单元高度处，远场面在外侧半个单元高度处；
+  # 面状态按 face_class.form_physics 由两侧平均得到（物面镜像后 u=v=0）。
+  ghost = SimpleNamespace(rho=c.rho, u=-c.u if not far else c.u, v=-c.v if not far else c.v, T=c.T)
+  face = SimpleNamespace(
+    mid=np.array([c.x, c.y]) + (0.5 if far else -0.5) * normal,
+    jacobian=np.array([normal, tangent]),
+    rho=(c.rho + ghost.rho) / 2,
+    u=(c.u + ghost.u) / 2,
+    v=(c.v + ghost.v) / 2,
+    T=(c.T + ghost.T) / 2,
+    miubl=0.0,
+  )
+  setattr(c, 'north' if far else 'south', face)
   c.influence = np.zeros((13, 5, 5))
   c.form_influence = lambda slot, block: c.influence[slot].__iadd__(block)
   return c, cells, normal
 
 
-def test_wall_stencil_and_coupled_ring(monkeypatch):
-  c, cells, normal = make_stencil(monkeypatch)
-  bc.wing_boundary(c)
-  names = ['c', 'e', 'w', 'n', 'nn', 'ne', 'nw']
-  weights = bc.normal_derivative([[q.x, q.y] for q in cells], normal, preferred_stencil=[0, 3, 4])
-  for name, weight in zip(names, weights):
-    block = c.influence[cc.dic[name]]
-    assert block[0, 0] == weight and block[3, 3] == weight
-  assert abs(c.influence[cc.dic['e'], 0, 0]) > 0.01
-  np.testing.assert_array_equal(np.diag(c.influence[cc.dic['c']])[[1, 2, 4]], 1)
+def make_uniform_stencil(monkeypatch, mach):
+  """远场模板，但基流在整条模板上均匀，便于用精确线性扰动验证条件位置。"""
+  c, cells, normal = make_stencil(monkeypatch, far=True, mach=mach)
+  a = np.sqrt(cc.gamma * cc.R * 300.0)
+  for cell in cells:
+    cell.rho, cell.T = 0.7, 300.0
+    cell.u, cell.v = mach * a * normal
+  c.north.rho, c.north.T = 0.7, 300.0
+  c.north.u, c.north.v = c.u, c.v
+  return c, cells, normal
 
 
 @pytest.mark.parametrize('rho,T', [(1.1, 290), (0.02, 130), (3.7, 900)])
@@ -143,6 +155,8 @@ def test_outflow_prescribes_paper_minus_with_nonzero_entropy(monkeypatch):
   a = np.sqrt(cc.gamma * cc.R * c.T)
   euler_minus = np.r_[-cc.R * c.T / (c.rho * a), normal, -cc.R / a, 0]
   assert abs(euler_minus @ dq) > 1
+  # 入流族是“面处不变量为零”，不是“把扰动设为零”：常值 T̂ 必须给出非零残差。
+  assert abs(c.influence[cc.dic['c'], 1] @ np.array([0, 0, 0, 1.0, 0])) > 0
 
 
 @pytest.mark.parametrize(
@@ -153,13 +167,48 @@ def test_farfield_modes_and_neighbor_states(monkeypatch, mach, incoming):
   c, cells, normal = make_stencil(monkeypatch, far=True, mach=mach)
   bc.far_boundary(c)
   names = ['c', 'e', 'w', 's', 'ss', 'se', 'sw']
-  weights = bc.normal_derivative([[q.x, q.y] for q in cells], normal, preferred_stencil=[0, 3, 4])
+  points = np.array([[q.x, q.y] for q in cells])
+  mid = np.asarray(c.north.mid)
+  value = bc.face_value(points, mid, normal, preferred_stencil=[0, 3, 4])
+  gradient = bc.normal_derivative(points, normal, preferred_stencil=[0, 3, 4], origin=mid)
+  face_rows, _ = bc.characteristics(c.north, normal)
   incoming = np.array(incoming, dtype=bool)
-  for i, (name, cell, weight) in enumerate(zip(names, cells, weights)):
+  for i, (name, cell, weight_value, weight_gradient) in enumerate(
+    zip(names, cells, value, gradient)
+  ):
     rows, _ = bc.characteristics(cell, normal)
     block = c.influence[cc.dic[name]]
-    np.testing.assert_allclose(block[~incoming], weight * rows[~incoming])
-    np.testing.assert_allclose(block[incoming], rows[incoming] if i == 0 else 0)
+    # 出流族：面处法向导数为零，用面法向导数算子乘各单元自身的系数。
+    np.testing.assert_allclose(block[~incoming], weight_gradient * rows[~incoming])
+    # 入流族：面处不变量为零，用面值算子乘面自身的系数。
+    np.testing.assert_allclose(block[incoming], weight_value * face_rows[incoming])
+  assert abs(value.sum() - 1) < 1e-11
+  assert abs(gradient.sum()) < 1e-11
+
+
+@pytest.mark.parametrize('mach', [-2, -0.3, 0.3, 2])
+@pytest.mark.parametrize('perturbation', [np.array([0.5, -0.3, 0.2, 0.1, 0.05])])
+def test_farfield_conditions_are_evaluated_on_the_face(monkeypatch, mach, perturbation):
+  """均勺基流下用精确线性扰动验证：出流族=面处法向导数，入流族=面处不变量值。"""
+  c, cells, normal = make_uniform_stencil(monkeypatch, mach)
+  bc.far_boundary(c)
+  names = ['c', 'e', 'w', 's', 'ss', 'se', 'sw']
+  points = np.array([[q.x, q.y] for q in cells])
+  mid = np.asarray(c.north.mid)
+  rows, speeds = bc.characteristics(c.north, normal)
+  incoming = speeds <= 0
+  slope = np.array([0.03, -0.02, 0.01, 0.04, 0.02])
+  fields = perturbation + ((points - mid) @ normal)[:, None] * slope
+  action = np.array(
+    [
+      sum(c.influence[cc.dic[name]][f] @ fields[i] for i, name in enumerate(names))
+      for f in range(5)
+    ]
+  )
+  expected = np.where(incoming, rows @ perturbation, rows @ slope)
+  np.testing.assert_allclose(action, expected, atol=1e-11)
+  # 扰动没有被整族置零：出流族的残差就是面处真实斜率，入流族的是面处不变量值。
+  assert np.any(np.abs(action) > 1e-6)
 
 
 @pytest.mark.parametrize('angle', [0.1, 1.9])
@@ -184,23 +233,32 @@ def test_invalid_boundary_coefficients_rejected(monkeypatch):
 
 
 @pytest.mark.parametrize('mach', [-0.3, 0.3])
-def test_extrapolated_paper_plus_with_spatial_entropy(monkeypatch, mach):
-  c, cells, normal = make_stencil(monkeypatch, far=True, mach=mach)
+@pytest.mark.parametrize('rho,T', [(1.1, 290.0)])
+def test_extrapolated_paper_plus_with_spatial_entropy(monkeypatch, mach, rho, T):
+  """纯密度线性剖面：声学行（论文 I+/- 不含密度）无响应，熵行给出面处真实斜率。"""
+  c, cells, normal = make_uniform_stencil(monkeypatch, mach)
+  for cell in cells:
+    cell.rho, cell.T = rho, T
+  c.north.rho, c.north.T = rho, T
   bc.far_boundary(c)
   names = ['c', 'e', 'w', 's', 'ss', 'se', 'sw']
   points = np.array([[q.x, q.y] for q in cells])
-  distance = (points - points[0]) @ normal
-  weights = bc.normal_derivative(points, normal)
-  paper_gradient = 0.0
-  euler_amplitudes = []
-  for name, cell, z in zip(names, cells, distance):
-    a = np.sqrt(cc.gamma * cc.R * cell.T)
-    # Density perturbation manufactured so Euler C+ = z, while paper I+ = 0.
-    drho = z * cell.rho * a / (cc.R * cell.T)
-    paper_gradient += c.influence[cc.dic[name], 0, 0] * drho
-    euler_amplitudes.append(cc.R * cell.T / (cell.rho * a) * drho)
-  assert paper_gradient == 0
-  np.testing.assert_allclose(weights @ euler_amplitudes, 1, atol=1e-12)
+  mid = np.asarray(c.north.mid)
+  rows, speeds = bc.characteristics(c.north, normal)
+  slope = np.array([1.0, 0.0, 0.0, 0.0, 0.0])
+  fields = ((points - mid) @ normal)[:, None] * slope
+  action = np.array(
+    [
+      sum(c.influence[cc.dic[name]][f] @ fields[i] for i, name in enumerate(names))
+      for f in range(5)
+    ]
+  )
+  outgoing = ~(speeds <= 0)
+  np.testing.assert_allclose(action[outgoing], rows[outgoing] @ slope, atol=1e-11)
+  # 两条声学行的密度列为零；熵行不为零。
+  np.testing.assert_allclose(rows[:2, 0], 0)
+  assert abs(rows[3, 0]) > 0
+  assert abs(action[3]) > 0
 
 
 @pytest.mark.parametrize('angle', [0.0, 0.7, 2.1])

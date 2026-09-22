@@ -20,7 +20,12 @@ from models import SA_FORMULATION, FlowModel, validate_base_model
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('case', type=Path)
-  parser.add_argument('--alpha', type=float, choices=[0.0, 0.2, 1.0], default=cc.alpha_H)
+  parser.add_argument(
+    '--alpha',
+    type=float,
+    default=cc.alpha_H,
+    help='混合格式系数 alpha_H；论文 (3.1.19) 允许 0 <= alpha_H <= 1',
+  )
   parser.add_argument(
     '--far-riemann',
     action='store_true',
@@ -35,6 +40,8 @@ def main():
   )
   parser.add_argument('--model', choices=[m.value for m in FlowModel], required=True)
   args = parser.parse_args()
+  if not 0.0 <= args.alpha <= 1.0:
+    raise ValueError('Mixed-scheme weight must satisfy 0 <= alpha_H <= 1')
   cc.alpha_H = args.alpha
   cc.far_riemann = args.far_riemann
   cc.viscous_face_central = args.viscous_face_central
@@ -52,19 +59,34 @@ def main():
   formmat._rows.clear()
   formmat._cols.clear()
   formmat._vals.clear()
-  for s in range(1, cc.S_MAX + 1):
-    boundary.wing_boundary(cc.goto_HALOcell((s, 1)))
-    # Riemann 闭合下远场环按普通面装配，不再写特征约束行。
-    if not cc.far_riemann:
+  # 物面条件只通过虚单元镜像在**面**上施加（_WALL_MAP：u,v,ν̃ 取负 ⇒ 面平均值为 0，
+  # ρ,T 同值 ⇒ 两点面法向导数为 0），物面环因此是普通守恒行。
+  # 远场环在特征约束下仍是代数行；Riemann 闭合时它与内部环一样按面装配。
+  if not cc.far_riemann:
+    for s in range(1, cc.S_MAX + 1):
       boundary.far_boundary(cc.goto_HALOcell((s, cc.N_MAX)))
   for n in range(1, cc.N_MAX + 1):
     for s in range(1, cc.S_MAX + 1):
       c = cc.goto_HALOcell((s, n))
       grad.green_gauss_from_JST(c, c.north, c.south, c.east, c.west)
+  # 虚单元的几何与基流梯度：与 formmat 的虚单元值映射一致；边界面黏性系数要用它。
+  for s in range(1, cc.S_MAX + 1):
+    wall = cc.goto_HALOcell((s, 1)).south
+    outer = cc.goto_HALOcell((s, cc.N_MAX)).north
+    for k in range(1, cc.HALO + 1):
+      grad.mirror_ghost(
+        cc.goto_HALOcell((s, 1 - k)), cc.goto_HALOcell((s, k)), wall, formmat._WALL_MAP
+      )
+      grad.mirror_ghost(
+        cc.goto_HALOcell((s, cc.N_MAX + k)),
+        cc.goto_HALOcell((s, cc.N_MAX + 1 - k)),
+        outer,
+        formmat._FAR_MAP,
+      )
   for face in cc.FaceList_NS + cc.FaceList_WE:
     viscous.prepare_face_diffusion(face)
   print('Boundary and gradients ready', flush=True)
-  for n in range(2, cc.N_MAX + 1 if cc.far_riemann else cc.N_MAX):
+  for n in formmat.solved_rings():
     for s in range(1, cc.S_MAX + 1):
       c = cc.goto_HALOcell((s, n))
       convect.convect_hybrid(c)
@@ -103,7 +125,8 @@ def main():
     'molecular_viscosity_linearization': 'frozen',
     'coefficient_method': 'analytic',
     'sa_formulation': SA_FORMULATION if cc.flow_model is FlowModel.SA else None,
-    'boundary_derivative': 'quadratic-2d',
+    # 边界条件在边界面中点上取值（面值/面法向导数算子），不是首末单元中心。
+    'boundary_derivative': 'quadratic-2d-face',
     'time_convention': 'exp(lambda*t)',
     'alpha_H': cc.alpha_H,
     'far_riemann': cc.far_riemann,

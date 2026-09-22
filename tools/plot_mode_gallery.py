@@ -50,6 +50,11 @@ parser.add_argument('--decades', type=float, default=4.0, help='log 时显示的
 parser.add_argument('--pdf', action='store_true', help='同时输出光栅化 PDF（矢量 PDF 会极大）')
 parser.add_argument('--dpi', type=int, default=150)
 parser.add_argument('--columns', type=int, default=8)
+parser.add_argument(
+  '--window',
+  default=None,
+  help='不读 scan_merged.csv，直接画该标签（如 stage1_0300）的全部模态',
+)
 parser.add_argument('--out', type=pathlib.Path, required=True)
 parser.add_argument('--title', default='')
 parser.add_argument(
@@ -80,9 +85,25 @@ wall = np.column_stack([xc[data['n'] == 1], yc[data['n'] == 1]])
 centers = np.column_stack([triangulation.x, triangulation.y])[triangulation.triangles].mean(axis=1)
 triangulation.set_mask(PlotPath(wall).contains_points(centers))
 
-records = list(
-  csv.DictReader((args.case / 'scan_merged.csv').read_text(encoding='utf-8').splitlines())
-)
+if args.window:
+  values = np.load(args.case / f'{args.window}_modes.npz', allow_pickle=True)['eigenvalues']
+  table = np.genfromtxt(
+    args.case / f'{args.window}_eigenvalues.csv', delimiter=',', names=True, encoding='utf-8'
+  )
+  records = [
+    {
+      'window': args.window,
+      'mode': str(index),
+      'growth_D_U': repr(float(table['growth_D_U'][index])),
+      'omega_D_U': repr(float(table['omega_D_U'][index])),
+      'St': repr(float(table['St'][index])),
+    }
+    for index in range(len(values))
+  ]
+else:
+  records = list(
+    csv.DictReader((args.case / 'scan_merged.csv').read_text(encoding='utf-8').splitlines())
+  )
 entries, seen = [], set()
 for item in records:
   key = (item['window'], int(item['mode']))
